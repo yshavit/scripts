@@ -1,0 +1,138 @@
+#!/usr/bin/python
+
+import os
+import signal
+import subprocess
+import sys
+
+BAR_LENGTH = 20
+BAR_FILLED = '#'
+BAR_EMPTY = ' '
+
+# trap sigint so that we don't get an ugly stack trace
+signal.signal(signal.SIGINT, lambda sig, frame: sys.exit(1))
+
+
+def lgetor(l, i, default_value):
+    if i >= len(l):
+        return default_value
+    r = l[i]
+    if r is None:
+        return default_value
+    return r
+
+
+class UpdateLine(object):
+    def __init__(self, out, total=None):
+        self.out = out
+        self.max_len = 0
+        self.total = total
+        self.seen = 0
+
+    def write(self, message):
+        if self.total:
+            self.seen += 1
+            tot_len = len(str(self.total))
+            seen_padded = str(self.seen).rjust(tot_len)
+            message = '[%s/%s] %s' % (seen_padded, self.total, message)
+        self.__write(message)
+
+    def clear(self):
+        self.__write('')
+
+    def __write(self, message):
+        message_len = len(message)
+        self.max_len = max(self.max_len, message_len)
+        overwrite_message = message + (' ' * (self.max_len - message_len))
+        sys.stdout.write('\r%s' % overwrite_message)
+        sys.stdout.write('\r%s' % message)  # move the cursor back
+        sys.stdout.flush()
+
+
+class Table(object):
+    def __init__(self, paddings=None, justifies=None):
+        self.paddings = paddings or []
+        self.justifies = justifies or []
+        self.rows = []
+
+    def add_row(self, *columns):
+        self.rows.append(columns)
+
+    def print_cells(self):
+        # Deep copy the rows, converting each cell to str as we go
+        rows = []
+        for r in self.rows:
+            rows.append(map(str, r))
+
+        # Make each row have the same number of columns
+        max_row_len = max(map(len, rows))
+        for r in rows:
+            r.extend([''] * (max_row_len - len(r)))
+
+        # Make each cell have the same number of columns
+        col_lens = [0] * max_row_len
+        for r in rows:
+            for i, c in enumerate(r):
+                col_lens[i] = max(col_lens[i], len(c))
+        for r in rows:
+            for i, c in enumerate(r):
+                justify = lgetor(self.justifies, i, 'l')
+                padding_size = (col_lens[i] - len(c))
+                padding = ' ' * padding_size
+                if justify == 'r':
+                    r[i] = padding + c
+                else:
+                    r[i] = c + padding
+                r[i] += (' ' * lgetor(self.paddings, i, 2))
+
+        # Finally, print it all out
+        for r in rows:
+            print ''.join(r)
+
+
+def sizeof_fmt(num):
+    # adapted from http://stackoverflow.com/a/1094933/1076640
+    #  Get one-char abbreviations, and start at K (not B) since we used du -k
+    for unit in ['K', 'M', 'G', 'T', 'P', 'E', 'Z']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s" % (num, unit)
+        num /= 1024.0
+    return "%.1f%s" % (num, 'Y')
+
+files = sys.argv[1:]
+if not files:
+    files = os.listdir('.')
+    files = filter(lambda f: not f.startswith('.'), files)
+    files.sort()
+
+# First, get all the file sizes
+sizes_by_name = {}
+status_writer = UpdateLine(sys.stdout, len(files))
+for f in files:
+    message = 'Calculating size for %s...' % f
+    status_writer.write(message)
+    f_size_str = subprocess.check_output(['du', '-ks', f])
+    f_size_str = f_size_str.split(None, 1)[0]  # stuff before the first space
+    f_size = int(f_size_str)
+    sizes_by_name[f] = f_size
+
+status_writer.clear()
+
+# Then report them
+total_size = float(sum(sizes_by_name.values()))
+file_sizes = sizes_by_name.items()  # [(name, size)]
+file_sizes.sort(key=lambda e: e[1], reverse=True)
+table = Table(paddings=[1], justifies=[None, 'r', 'r'])
+for f, f_size in file_sizes:
+    ratio = f_size / total_size
+    filled_bars = int(round(ratio * BAR_LENGTH))
+    unfilled_bars = BAR_LENGTH - filled_bars
+    if os.path.islink(f):
+        f = '(link) %s' % f
+    table.add_row(
+        '[%s%s]' % (BAR_FILLED * filled_bars, BAR_EMPTY * unfilled_bars),
+        '%.1f%%' % (ratio * 100),
+        sizeof_fmt(f_size),
+        f)
+
+table.print_cells()

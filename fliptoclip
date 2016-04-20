@@ -1,0 +1,25 @@
+#!/bin/bash
+case "${1:---table}" in
+  --table)
+    FLIPIT='(╯°□°）╯︵ ┻━┻)'
+    ;;
+  --double)
+    FLIPIT='┻━┻ ︵ ╰ ( °□°）╯ ︵ ┻━┻'
+    ;;
+  --shrug)
+    FLIPIT='¯\_(ツ)_/¯'
+    ;;
+  --battle)
+    FLIPIT='(╯°□°)╯︵ ┻━┻ ︵ ╯(°□° ╯)'
+    ;;
+  --imitation-game)
+    echo "Yes, I'm Turing-aware."
+    echo "I'm just very dull, so it's hard to tell."
+    exit 0
+    ;;
+  *)
+    echo "Unrecognized switches gives me the twitches!"
+    exit 1
+    ;;
+esac
+printf '%s' "$FLIPIT" | pbcopy

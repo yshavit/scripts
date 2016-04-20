@@ -1,0 +1,10 @@
+#!/bin/bash
+
+APP_ID="$1"
+if [[ -z "$APP_ID" || -n "$2" ]] ; then
+  echo "Usage: $(basename $0) <applicationId>"
+  exit 1
+fi
+
+PAGER="${PAGER:-less}"
+yarn logs -applicationId "$APP_ID" | $PAGER

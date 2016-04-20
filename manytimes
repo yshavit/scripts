@@ -1,0 +1,32 @@
+#!/bin/bash
+
+if [[ -z "$1" ]]; then
+  echo >&2 "Usage: $(basename $0) <n> [file ...]"
+  echo >&2 "  Prints the contents of the files, or stdin if no files provided, n times to stdout"
+  echo >&2 "  If <n> is a dash ($(basename $0) - [file ...]), the contents will be repeated forever."
+  exit 1
+fi
+REMAINING="$1"
+shift
+
+set -e
+# If we have files, validate that we can read them
+if [[ -n "$1" ]]; then
+  for FILE in "${@}"; do
+    head -c 1 "$FILE" >/dev/null
+  done
+else
+  CONTENTS="$(cat)"
+fi
+
+while [[ "$REMAINING" == '-' || $(( $REMAINING )) -ne 0 ]]; do
+  if [[ "$REMAINING" != '-' ]]; then
+    REMAINING=$(( $REMAINING - 1 ))
+  fi
+  if [[ -n "$1" ]]; then
+    cat "${@}"
+  else
+    echo "$CONTENTS"
+  fi
+done
+
