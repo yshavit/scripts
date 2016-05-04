@@ -1,0 +1,13 @@
+#!/bin/bash
+
+PREFIX="${@}"
+if [[ -n "$PREFIX" ]]; then
+  PREFIX="$PREFIX "
+fi
+
+while true ; do
+  for SPIN in \| / - \\ \| / - ; do
+    printf "\r$PREFIX$SPIN"
+    sleep 0.2
+  done
+done
