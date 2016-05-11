@@ -46,6 +46,7 @@ for fidx, f in enumerate(sys.argv[1:]):
                 else:
                     key_counts[k] = 1
                 if k not in key_examples:
+                    v = str(v).replace("\n", "\\n").replace("\r", "\\r")
                     if len(v) > MAX_EXAMPLE_LEN:
                         v = '%s...' % v[:MAX_EXAMPLE_LEN]
                     key_examples[k] = '%s:%s - %s' % (fidx, objs_count, v)
