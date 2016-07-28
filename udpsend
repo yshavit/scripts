@@ -3,6 +3,7 @@
 import signal
 import socket
 import sys
+import time
 
 if len(sys.argv) not in (2, 3):
     import os
@@ -32,3 +33,4 @@ for line in sys.stdin.readlines():
     if line.endswith('\n'):
         line = line[:-1]
     sock.sendto(line, (host, port))
+    time.sleep(0.001)
