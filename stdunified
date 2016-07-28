@@ -1,0 +1,15 @@
+#!/bin/bash
+if [[ -z $(printf '%s' "${@}") ]]; then
+  printf 1>&2 "Usage: %s <command> [arguments]\n\n" $(basename "$0")
+  printf 1>&2 "Invokes the given command with the arguments, and prints a combination of its stdout and stderr to stdout."
+  exit 1
+fi
+out_tmp=$(mktemp)
+err_tmp=$(mktemp)
+"${@}" > "$out_tmp" 2> "$err_tmp"
+function print_and_rm {
+  cat "$1" | sed "s/^/${2}: /"
+  rm "$1"
+}
+print_and_rm "$out_tmp" OUT
+print_and_rm "$err_tmp" ERR
