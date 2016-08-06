@@ -104,6 +104,8 @@ if not files:
     files = os.listdir('.')
     files = filter(lambda f: not f.startswith('.'), files)
     files.sort()
+if not files:
+    exit(0)
 
 # First, get all the file sizes
 sizes_by_name = {}
