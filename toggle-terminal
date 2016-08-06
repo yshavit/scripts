@@ -1,0 +1,14 @@
+#!/bin/bash
+
+TERMINAL_COMMAND_NAME='gnome-terminal'
+
+if ps -p $(xdotool getactivewindow getwindowpid) -o comm= | grep -q "$TERMINAL_COMMAND_NAME" ; then
+  xdotool getactivewindow windowminimize
+else
+  TERMINAL_WID=$(xdotool search --onlyvisible --class --limit 1 terminal)
+  if [[ -n "$TERMINAL_WID" ]]; then
+    xdotool windowactivate "$TERMINAL_WID"
+  else
+    gnome-terminal
+  fi
+fi
