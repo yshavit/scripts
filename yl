@@ -6,5 +6,5 @@ if [[ -z "$APP_ID" || -n "$2" ]] ; then
   exit 1
 fi
 
-PAGER="${PAGER:-less}"
+PAGER="${PAGER:-"less -S"}"
 yarn logs -applicationId "$APP_ID" | $PAGER
