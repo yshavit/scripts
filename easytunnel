@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Because I can never remember the goddamn magic incantation
+
+read -p 'remote user: ' REMOTE_USER
+read -p 'remote host: ' REMOTE_HOST
+read -p 'remote port: ' REMOTE_PORT
+read -p "local port [$REMOTE_PORT]: " LOCAL_PORT
+read -p "background [y/n]? " IN_BACKGROUND
+LOCAL_PORT="${LOCAL_PORT:-"$REMOTE_PORT"}"
+
+BACKGROUND=''
+if [[ "$IN_BACKGROUND" == 'y' || "$IN_BACKGROUND" == 'yes' ]]; then
+  BACKGROUND='-f'
+fi
+
+ssh -L "$LOCAL_PORT:localhost:$REMOTE_PORT" "$REMOTE_USER"@"$REMOTE_HOST" -N $BACKGROUND "${@}"
