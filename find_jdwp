@@ -5,25 +5,11 @@ if [[ -z "$JAVA_HOME" ]]; then
   exit 1
 fi
 
-TOOLS="$JAVA_HOME/lib/tools.jar"
-if [[ ! -e "$TOOLS" ]]; then
-  echo 1>&2 "Couldn't find tools.jar in $TOOLS"
+export CLASSPATH="$JAVA_HOME/lib/tools.jar"
+if [[ ! -e "$CLASSPATH" ]]; then
+  echo 1>&2 "Couldn't find tools.jar in $CLASSPATH"
   exit 1
 fi
 
 cd "$(dirname "$0")"
-
-OUT_DIR='.jdwp_finder'
-JAVA_FILE="$OUT_DIR/JdwpFinder.java"
-SOURCE_HASH_FILE="$OUT_DIR"/classhash
-
-SOURCE_HASH="$(md5sum "$JAVA_FILE")"
-if [[ "$(cat "$SOURCE_HASH_FILE" 2>/dev/null)" != "$SOURCE_HASH" ]]; then
-  set -e
-  mkdir -p "$OUT_DIR"
-  javac -cp "$TOOLS" -d "$OUT_DIR" "$OUT_DIR/JdwpFinder.java"
-  set +e
-  echo "$SOURCE_HASH" > "$SOURCE_HASH_FILE"
-fi
-
-java -cp "$TOOLS:$OUT_DIR" JdwpFinder "$@"
+./javarun .java_sources/JdwpFinder.java "$@"

@@ -1,2 +1,2 @@
-.jdwp_finder/JdwpFinder.class
-.jdwp_finder/classhash
+.java_sources/*.class
+.java_sources/*.java.hash
