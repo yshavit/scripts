@@ -119,7 +119,7 @@ for f in files:
         f_size_str = subprocess.check_output(['du', '-ks', f])
         f_size_str = f_size_str.split(None, 1)[0]  # stuff before the first space
         f_size = int(f_size_str)
-    except:
+    except Exception:
         f_size = -1
     sizes_by_name[f] = f_size
 
