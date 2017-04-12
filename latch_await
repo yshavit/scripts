@@ -1,0 +1,27 @@
+#!/bin/bash
+LATCHES_DIR=~/.ys_latches
+
+START_TIME=$(date +%s)
+if [[ $# -eq 0 ]]; then
+  set -- DEFAULT
+  printf 1>&2 'Waiting on default latch.'
+else
+  printf 1>&2 'Waiting on latch'
+  if [[ $# -gt 1 ]]; then
+    printf 1>&2 'es'
+  fi
+  printf 1>&2 ': %s.' "$*"
+fi
+
+mkdir -p "$LATCHES_DIR"
+for LATCH in "$@" ; do 
+  rm "$LATCHES_DIR/$LATCH" &>/dev/null
+  mkfifo "$LATCHES_DIR/$LATCH"
+done
+for LATCH in "$@" ; do
+  if [[ ! -s "$LATCHES_DIR/$LATCH" ]]; then
+    head -c 1 "$LATCHES_DIR/$LATCH" >/dev/null
+  fi
+  rm "$LATCHES_DIR/$LATCH"
+done
+printf 1>&2 ' Finished waiting in %ss.\n' "$(( $(date +%s) - $START_TIME ))"

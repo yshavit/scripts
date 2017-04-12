@@ -1,0 +1,11 @@
+#!/bin/bash
+LATCHES_DIR=~/.ys_latches
+
+if [[ $# -eq 0 ]]; then
+  set -- DEFAULT
+fi
+
+mkdir -p "$LATCHES_DIR"
+for LATCH in "$@" ; do
+  (echo >> "$LATCHES_DIR/$LATCH") &
+done
