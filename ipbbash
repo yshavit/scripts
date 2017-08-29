@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [ -z "$EDTIOR" ]; then
+  EDITOR='vim'
+fi
+
+file_name=$(mktemp -t ipbcopy-XXXXX)
+if [ -n "$1" ]; then
+  set -e
+  cp "$1" "$file_name"
+  set +e
+elif [ ! -t 0 ]; then # read stdin into the file if available
+  cat > "$file_name"
+fi
+$EDITOR "$file_name" < /dev/tty > /dev/tty
+bash "$file_name"
+rm "$file_name"
