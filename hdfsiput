@@ -12,7 +12,7 @@ if [[ "$#" -eq 0 || "$#" -gt 2 ]]; then
   echo "" 1>&2
   echo "Opens an editor for interactive pasting, then puts the contents into hdfs at the given path." 1>&2
   echo "If [ext] is provided, <path> is assumed to be a directory, and a file will be created in that directory" 1>&2
-  echo "with a random name and the given extension: '$(basename "$0") /tmp/load/foo json'" 1>&2
+  echo "with a random name and the given extension: '$(basename "$0") foodir json'" 1>&2
   echo "If [ext] is not provided, <path> is interpreted exactly." 1>&2
   exit 1
 fi
