@@ -1,0 +1,9 @@
+#!/bin/bash
+
+my_dir="$(dirname "$0")"
+pr_num="$1"
+pr_file="$(osascript "$my_dir/FetchPr.scpt" "$pr_num")"
+pr_branch="PR-$pr_num"
+set -x
+git checkout -b "$pr_branch"
+patch -p 1 < "$pr_file"
