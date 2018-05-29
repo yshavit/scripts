@@ -14,4 +14,5 @@ if [[ "$IN_BACKGROUND" == 'y' || "$IN_BACKGROUND" == 'yes' ]]; then
   BACKGROUND='-f'
 fi
 
+set -x
 ssh -L "$LOCAL_PORT:localhost:$REMOTE_PORT" "$REMOTE_USER"@"$REMOTE_HOST" -N $BACKGROUND "${@}"
