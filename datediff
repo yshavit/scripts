@@ -1,0 +1,46 @@
+#!/usr/local/bin/python3
+
+import sys
+import time
+
+from dateutil import parser
+from math import floor
+
+def datediff(d1, d2):
+    res = ''
+    if d2 < d1:
+        res = '-'
+        tmp = d1
+        d1, d2 = d2, d1
+    diff_sec = d2.timestamp() - d1.timestamp()
+
+    hrs_diff = floor(diff_sec / 3600)
+    diff_sec -= hrs_diff * 3600
+
+    mins_diff = round(diff_sec / 60)
+
+    if hrs_diff or days_diff:
+        res += '%dh ' % hrs_diff
+    res += '%dm' % mins_diff
+    return res
+
+def __try_parse(prompt):
+    s = input(prompt)
+    try:
+        return parser.parse(s)
+    except ValueError:
+        return None
+
+if __name__ == '__main__':
+    base_date = __try_parse('Base date (t=0): ')
+    if base_date is None:
+        sys.exit(1)
+    print('Now enter dates to compare it to, one per line.')
+    while True:
+        try:
+            d2 = __try_parse('> ')
+            if d2:
+                print(datediff(base_date, d2))
+        except EOFError:
+            break
+
