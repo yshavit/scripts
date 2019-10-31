@@ -1,0 +1,14 @@
+#!/usr/bin/python
+
+import json
+import sys
+
+for line in sys.stdin.readlines():
+    if not line.startswith('"'):
+        line = '"' + line
+    if not line.endswith('"'):
+        line = line + '"'
+    o = json.loads(line)
+    if isinstance(o, str) or isinstance(o, unicode):
+        o = json.loads(o)
+    print(json.dumps(o, indent=4))
