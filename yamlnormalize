@@ -1,0 +1,17 @@
+#!/usr/bin/python3
+
+import sys
+import yaml
+
+def loadyaml(fh):
+    return yaml.load(fh, Loader=yaml.BaseLoader)
+
+if len(sys.argv) > 1:
+    for f in sys.argv[1:]:
+        with open(f) as fh:
+            obj = loadyaml(fh)
+        with open(f, 'w') as fh:
+            yaml.dump(obj, fh)
+else:
+    print(yaml.dump(loadyaml(sys.stdin)))
+
