@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!python
 
 import yaml
 import json
@@ -13,4 +13,4 @@ for fp in loaders:
     with fp() as f:
         yobjs = yaml.load_all(f)
         for yobj in yobjs:
-            print json.dumps(yobj, indent=2)
+            print(json.dumps(yobj, indent=2))
