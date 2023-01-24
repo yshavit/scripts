@@ -1,0 +1,87 @@
+#!/bin/bash
+set -euo pipefail
+
+function msg {
+  echo >&2 "$@"
+}
+
+function err {
+  msg "$@"
+  exit 1
+}
+
+if ! git diff --stat &>/dev/null ; then
+  err "Not in a git repo."
+fi
+
+if git diff --stat | grep -q . ; then
+  err "Repo is dirty. Can't rm branch."
+fi
+
+expected_remote="$(gh repo view --json owner,name | jq -r '"git@github.com:" + .owner.login + "/" + .name + ".git"')"
+actual_remote="$(git remote -v | tr ' ' $'\t' | cut -f 2 | sort -u)"
+if [[ "$(wc -l <<< "$actual_remote" )" -ne 1 ]]; then 
+  msg "Multiple remotes found. I don't know how to handle that smartly, so this may not work. Will try anyway."
+elif [[ "$actual_remote" != "$expected_remote" ]]; then
+  msg "Remote is $actual_remote, but GitHub knows it as $expected_remote."
+  msg "This means we won't be able to find the pull requests."
+  msg "Run:"
+  err "  git remote set-url origin $expected_remote"
+fi
+
+
+default_branch_name="$(gh repo view --json defaultBranchRef | jq -r .defaultBranchRef.name)"
+
+curr_branch="$(git rev-parse --abbrev-ref HEAD)"
+if [[ "$curr_branch" == HEAD ]]; then
+  err "Dir is in detached state. Can't rm (there's no branch name to rm)."
+fi
+
+function check_and_rm {
+  branch_name="$1"
+  if [[ "$branch_name" == "$default_branch_name" ]]; then
+    msg "Can't rm $default_branch_name because it is this repo's default branch."
+    return 1
+  fi
+  last_sha="$(git log -n 1 --pretty=format:%H "$branch_name")"
+  merged_into_json="$(gh pr list -S "$last_sha" --state merged --json baseRefName,url)"
+  # The index takes some time to update, so it may not be available as "--state merged" for a few minutes.
+  # So, if we don't find it there, search again without the flag.
+  if [[ "$(<<<"$merged_into_json" jq length)" == 0 ]]; then
+    merged_into_json="$(gh pr list -S "$last_sha" --state merged --json baseRefName,url,state)"
+    merged_into_json="$(<<<"$merged_into_json" jq 'map(select(.state == "MERGED"))')"
+  fi
+
+  case "$(<<<"$merged_into_json" jq length)" in
+    ""|0)
+      err "No merged PRs found for the latest commit ($branch_name@${last_sha:0:8}). Can't rm branch."
+      ;;
+    1)
+      ;; # Desired case!
+    *)
+      err "Multiple PRs found for the latest commit ($branch_name@${last_sha:0:8}). Can't rm branch."
+      ;;
+  esac
+
+  merged_into="$(<<<"$merged_into_json" jq -r '.[].baseRefName')"
+  pr_url="$(<<<"$merged_into_json" jq -r '.[].url')"
+
+  msg "Merged into $merged_into via $pr_url"
+
+  git co "$merged_into"
+  git branch -D "$branch_name"
+}
+
+if [[ $# -lt 1 ]]; then
+  check_and_rm "$curr_branch"
+else
+  exit_code=0
+  for branch_name in "$@"; do 
+    if ! check_and_rm "$branch_name" ; then
+      exit_code=1
+    fi
+  done
+  if [[ "$exit_code" != 0 ]]; then
+    exit "$exit_code"
+  fi
+fi
