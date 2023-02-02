@@ -70,6 +70,7 @@ function check_and_rm {
 
   git co "$merged_into"
   git branch -D "$branch_name"
+  git pull
 }
 
 if [[ $# -lt 1 ]]; then
