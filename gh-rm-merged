@@ -59,7 +59,9 @@ function check_and_rm {
     1)
       ;; # Desired case!
     *)
-      err "Multiple PRs found for the latest commit ($branch_name@${last_sha:0:8}). Can't rm branch."
+      msg "Multiple merged PRs found for the latest commit ($branch_name@${last_sha:0:8}):"
+      echo "$merged_into_json" | jq -r '.[]| "• " + .url + " into " + .baseRefName' 
+      err "Can't rm branch. If one of those branches is the one you wanted to merge into, you can safely delete this branch."
       ;;
   esac
 
