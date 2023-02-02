@@ -52,6 +52,10 @@ function check_and_rm {
     merged_into_json="$(<<<"$merged_into_json" jq 'map(select(.state == "MERGED"))')"
   fi
 
+  # Ignore any PRs *into* this branch.
+  echo ===========================
+  merged_into_json="$(echo "$merged_into_json" | jq '[ .[] | select(.baseRefName != $curr) ]' --arg curr "$branch_name")"
+
   case "$(<<<"$merged_into_json" jq length)" in
     ""|0)
       err "No merged PRs found for the latest commit ($branch_name@${last_sha:0:8}). Can't rm branch."
