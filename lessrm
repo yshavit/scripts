@@ -1,0 +1,33 @@
+#!/bin/bash
+
+function do_one() {
+  FILE_NAME="$1"
+  if [[ ! -e "$FILE_NAME" ]]; then
+    echo >&2 "no such file :$FILE_NAME"
+    return
+  fi
+  set -e
+  vim -R "$FILE_NAME"
+  while [[ true ]]; do
+    read -p "rm $FILE_NAME? " SHOULD_DELETE
+    if [[ "$SHOULD_DELETE" == 'yes' || "$SHOULD_DELETE" == 'y' ]]; then
+      rm "$FILE_NAME"
+      return
+    elif [[ "$SHOULD_DELETE" == 'no' || "$SHOULD_DELETE" == 'n' ]]; then
+      return
+    else
+      echo 'Please enter "yes" or "no".'
+    fi
+  done
+}
+
+
+if [[ -z "$1" ]]; then
+  echo 1>&2 "Usage $(basename "$0") <file>"
+  echo 1>&2 "Opens the given file with less, and then prompts you if you want to delete it."
+  exit 1
+fi
+
+for f in "$@"; do
+  do_one "$f"
+done
