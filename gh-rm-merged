@@ -77,6 +77,9 @@ function check_and_rm {
   git co "$merged_into"
   git branch -D "$branch_name"
   git pull
+  if [[ "$merged_into" != "$curr_branch" ]]; then
+    git co "$curr_branch"  # move back to where we were
+  fi
 }
 
 if [[ $# -lt 1 ]]; then
