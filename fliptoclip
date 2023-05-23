@@ -1,7 +1,7 @@
 #!/bin/bash
 case "${1:---table}" in
   --table)
-    FLIPIT='(╯°□°）╯︵ ┻━┻)'
+    FLIPIT='(╯°□°）╯ ︵┻━┻'
     ;;
   --double)
     FLIPIT='┻━┻ ︵ ╰ ( °□°）╯ ︵ ┻━┻'
