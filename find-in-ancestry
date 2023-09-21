@@ -1,0 +1,28 @@
+#!/bin/bash
+if [[ -z "$@" ]]; then
+  echo 1>&2 "Usage: $(basename "$0") <files>"
+  exit 1
+fi
+
+exit_code=2
+
+function format_path() {
+  local expanded_path="$(readlink -f $1)"
+  if [[ "$expanded_path" =~ "$HOME/"* ]]; then
+    expanded_path="~/${expanded_path#"$HOME/"}"
+  fi
+  echo "$expanded_path"
+}
+
+while true ; do
+  for path in $(ls "$*" 2>/dev/null); do
+    exit_code=0
+    format_path "$path"
+  done
+  if [[ "$PWD" == '/' || "$PWD" == "$HOME" ]]; then
+    break
+  fi
+  cd ..
+done
+
+exit "$exit_code"
