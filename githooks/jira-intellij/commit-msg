@@ -1,0 +1,26 @@
+#!/bin/bash
+
+contents="$(awk '/^#/{exit} {print}' "$1")"
+
+err () {
+  echo >&2 "$*"
+  while read -r line; do
+    echo >&2 "│ $line"
+  done <<< "$contents"
+  exit 1
+}
+
+non_blank_lines="$(echo "$contents" | grep -vE '^\s*$')"
+if [ "$(echo "$non_blank_lines" | wc -l)" -eq 1 ] && (echo "$non_blank_lines" | grep -qE '^\w+-\d+$'); then
+  err "Commit message must be more than just a ticket ID! Was:"
+  exit 1
+fi
+
+if ! grep -qE '\S' <<<"$contents" ; then
+  exit # empty commit; git will reject it with a standard message
+fi
+
+first_line="$(echo "$contents" | head -n1)"
+if [ -z "$first_line" ]; then
+  err "Empty first line in commit message:"
+fi

@@ -1,0 +1,94 @@
+#!/bin/sh
+
+# An example hook script to prepare the commit log message.
+# Called by "git commit" with the name of the file that has the
+# commit message, followed by the description of the commit
+# message's source.  The hook's purpose is to edit the commit
+# message file.  If the hook fails with a non-zero status,
+# the commit is aborted.
+#
+# To enable this hook, rename this file to "prepare-commit-msg".
+
+# This hook includes three examples. The first one removes the
+# "# Please enter the commit message..." help message.
+#
+# The second includes the output of "git diff --name-status -r"
+# into the message, just before the "git status" output.  It is
+# commented because it doesn't cope with --amend or with squashed
+# commits.
+#
+# The third example adds a Signed-off-by line to the message, that can
+# still be edited.  This is rarely a good idea.
+set -o pipefail
+msg() {
+  echo >&2 "$*"
+}
+
+err() {
+  msg "$@"
+  exit 1
+}
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+SHA1=$3
+
+current_changelist="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@id" .idea/workspace.xml)"
+
+if [ "$current_changelist" == "Default" ]; then
+  current_changelist=''
+  changelist_err_msg='No active changelist in IntelliJ.'
+else
+  printf >&2 'Fetching status of %s from JIRA... ' "$current_changelist"
+  conf_dir="${XDG_CONFIG_HOME:-"$HOME/.config"}/git-intellij-jira"
+  jira_username="$(cat 2>/dev/null "$conf_dir/username")"
+  jira_token="$(cat 2>/dev/null "$conf_dir/pat")"
+  jira_base_url="$(cat 2>/dev/null "$conf_dir/base-url")"
+  if [ -z "$jira_username" ] || [ -z "$jira_token" ] || [ -z "$jira_base_url" ]; then
+    changelist_err_msg="Couldn't find JIRA login credentials.
+    Please add the following files to $conf_dir:
+    - \"username\": your JIRA username or email address
+    - \"pat\": your JIRA personal access token
+    - \"base-url\": your JIRA instance's base URL, which is something like https://YOURCOMPANY.atlassian.net"
+    changelist_err_msg="$(echo "$changelist_err_msg" | sed -E 's/^ *//')" # remove the indentations
+    current_changelist=''
+  else
+    # rm \r and \n because jira will sometimes incorrectly put them in
+    jira_ticket="$(curl -X GET -H "Authorization: Basic $(printf '%s:%s' "$jira_username" "$jira_token" | base64 | tr -d $'\n')" -H "Content-Type: application/json" "$jira_base_url/rest/api/2/issue/$current_changelist" 2>/dev/null)"
+    if [ "$?" -ne 0 ] || [ -z "$jira_ticket" ]; then
+      changelist_err_msg="Couldn't connect to JIRA."
+      current_changelist=''
+    elif jq -e .errorMessages <<<"$jira_ticket" &>/dev/null ; then
+      changelist_err_msg="Couldn't fetch ticket $current_changelist from JIRA"
+      current_changelist=''
+    elif jq -e .fields.resolution <<<"$jira_ticket" &>/dev/null ; then
+      changelist_err_msg="IntelliJ changelist is $current_changelist, but JIRA says that's already resolved."
+      current_changelist=''
+    fi
+  fi
+  printf >&2 '\r%s\r' "$(printf 'Fetching status of %s from JIRA... ' "$current_changelist" | sed 's/./ /g')"
+fi
+
+
+if [ "$COMMIT_SOURCE" == 'message' ]; then
+  if [ -n "$changelist_err_msg" ]; then
+    msg "WARNING: $changelist_err_msg"
+  fi
+  echo >> "$COMMIT_MSG_FILE"
+  echo "$current_changelist"  >> "$COMMIT_MSG_FILE"
+elif [ -z "$COMMIT_SOURCE" ]; then
+  tmp_file="$(mktemp)"
+  printf >>"$tmp_file" '\n\n'
+  if [ -n "$current_changelist" ]; then
+    up_arrows="$(echo "$current_changelist" | sed 's/./^/g' | sed 's/^.//')"
+    printf >>"$tmp_file" '%s\n#%s derived from active IntelliJ changelist\n' "$current_changelist" "$up_arrows"
+  else
+    echo "$changelist_err_msg" | sed 's/^/# /' >> "$tmp_file"
+    
+    prefill_msg="# $changelist_err_msg"
+  fi
+
+  cat "$COMMIT_MSG_FILE" >> "$tmp_file"
+
+  mv "$tmp_file" "$COMMIT_MSG_FILE"
+fi
