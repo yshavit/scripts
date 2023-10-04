@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -euo pipefail
+
+project_root="${1:-$PWD}"
+
+single_upsert_script="$(readlink -f "$(dirname "$0")/py/vscode_to_idea_nodeattach.py")"
+
+find "$project_root" -path '*/.vscode/launch.json' -exec python3 "$single_upsert_script" "$project_root" {} \;

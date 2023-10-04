@@ -1,2 +1,3 @@
 .java_sources/*.class
 .java_sources/*.java.hash
+__pycache__/
