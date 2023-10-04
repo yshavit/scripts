@@ -21,7 +21,7 @@ To use it, symlink the scripts to your repo's `.git/hooks/` dir. Alternatively, 
 
     /path/to/yshavit/scripts/githooks/jira-intellij/$(basename "$0") "$@"
 
-## 'vscode_to_idea-node-attach`
+## `vscode_to_idea-node-attach`
 
 Looks through all of the `*/.vscode/launch.json` files in the given directory (or `$PWD`, if unspecified) to find launch
 configurations for attaching to Node.js processes. Upserts them into a same-named configuration in your IDEA configs.
