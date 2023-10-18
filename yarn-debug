@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -euo pipefail
+PATH="$(dirname "$0"):$PATH"
+
+function err() {
+  echo >&2 "$@"
+  exit 1
+}
+
+script_name="${1:-}"
+if [ -z "$script_name" ]; then
+  err "Usage: $(basename "$0") <script-name> [...script args]"
+fi
+shift
+
+package_json_path="$( ( find-in-ancestry package.json || true ) | head -n1)"
+if [ -z "$package_json_path" ]; then
+  err "Couldn't find package.json"
+fi
+
+script_content="$(cat "$package_json_path" | jq -r --arg script_name "$script_name" '.scripts[$script_name] // ""')"
+if [ -z "$script_content" ]; then
+  err "No script named \"$script_name\" in $package_json_path"
+fi
+
+yarn run --inspect-brk $script_content "$@"
