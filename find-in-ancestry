@@ -8,7 +8,9 @@ exit_code=2
 
 function format_path() {
   local expanded_path="$(readlink -f $1)"
-  if [[ "$expanded_path" =~ "$HOME/"* ]]; then
+  # only expand in interactive terminals
+  if [[ $- == *i*-t ]] && [[ "$expanded_path" =~ "$HOME/"* ]]; then
+    echo >&2 here
     expanded_path="~/${expanded_path#"$HOME/"}"
   fi
   echo "$expanded_path"
