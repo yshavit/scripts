@@ -1,10 +1,11 @@
 # Some useful scripts
 
-|                              |                                                              |
-|------------------------------|--------------------------------------------------------------|
-| `gh-rm-merged`               | Deletes a branch, but only if it’s been merged via a PR.     |
-| `./githooks/jira-intellij/`  | git hooks for Jira + IntelliJ integration                    |
-| `vscode_to_idea-node-attach` | updates node.js attach configs from VS Code to IntelliJ IDEA |
+|                              |                                                               |
+|------------------------------|---------------------------------------------------------------|
+| `gh-rm-merged`               | Deletes a branch, but only if it’s been merged via a PR.      |
+| `./githooks/jira-intellij/`  | Git hooks for Jira + IntelliJ integration.                    |
+| `vscode_to_idea-node-attach` | Updates node.js attach configs from VS Code to IntelliJ IDEA. |
+| `yarn-debug`                 | Runs a yarn script with `--inspect-brk`                       |
 
 ## `gh-rm-merged`
 
@@ -27,3 +28,13 @@ Looks through all of the `*/.vscode/launch.json` files in the given directory (o
 configurations for attaching to Node.js processes. Upserts them into a same-named configuration in your IDEA configs.
 The IDEA configs must be in `./idea/workspace.xml` relative to the dir you specify (or PWD).
 
+## `yarn-debug`
+
+According to yarn's help, it seems like you _should_ be able to do something like:
+
+    yarn run --inspect-brk myscript
+
+However, that doesn't work for me: yarn runs _myscript_ without creating the debugger, let alone waiting for it to
+attach. This script provides a workaround for that:
+
+    yarn-debug myscript
