@@ -81,8 +81,7 @@ elif [ -z "$COMMIT_SOURCE" ]; then
   tmp_file="$(mktemp)"
   printf >>"$tmp_file" '\n\n'
   if [ -n "$current_changelist" ]; then
-    up_arrows="$(echo "$current_changelist" | sed 's/./^/g' | sed 's/^.//')"
-    printf >>"$tmp_file" '%s\n#%s derived from active IntelliJ changelist\n# ↳ %s\n' "$current_changelist" "$up_arrows" "$current_changelist_desc" 
+    printf >>"$tmp_file" '%s\n# ↳ %s\n#   (derived from active IntelliJ changelist)\n' "$current_changelist" "$current_changelist_desc" 
   else
     echo "$changelist_err_msg" | sed 's/^/# /' >> "$tmp_file"
     
