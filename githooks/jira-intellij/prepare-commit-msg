@@ -34,6 +34,7 @@ COMMIT_SOURCE=$2
 SHA1=$3
 
 current_changelist="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@id" .idea/workspace.xml)"
+current_changelist_desc="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@summary" .idea/workspace.xml)"
 
 if [ "$current_changelist" == "Default" ]; then
   current_changelist=''
@@ -81,7 +82,7 @@ elif [ -z "$COMMIT_SOURCE" ]; then
   printf >>"$tmp_file" '\n\n'
   if [ -n "$current_changelist" ]; then
     up_arrows="$(echo "$current_changelist" | sed 's/./^/g' | sed 's/^.//')"
-    printf >>"$tmp_file" '%s\n#%s derived from active IntelliJ changelist\n' "$current_changelist" "$up_arrows"
+    printf >>"$tmp_file" '%s\n#%s derived from active IntelliJ changelist\n# ↳ %s\n' "$current_changelist" "$up_arrows" "$current_changelist_desc" 
   else
     echo "$changelist_err_msg" | sed 's/^/# /' >> "$tmp_file"
     
