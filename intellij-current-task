@@ -1,0 +1,37 @@
+#!/bin/bash
+
+if [ ${#funcstack} -gt 1 ]; then
+  # file is being sourced, hopefully by p10k. Add the p10k prompt function.
+  function prompt_idea_task() {
+    # ${(%):-%x} is zsh for "the path script that defined this function" (in other words, this file). See: https://stackoverflow.com/a/28336473/1076640
+    current_task="$("${(%):-%x}" 2>/dev/null || true)"
+    local task_icon_1=$'\uf4a0' # task list variant 1
+    local task_icon_2=$'\ueb67' # task list variant 2
+    local task_icon_3=$'\uf0ae' # task list variant 3
+    local task_icon_4=$'\ue7b5' # intellij icon
+    [ -n "$current_task" ] && p10k segment -t "$current_task" -f magenta -i "${IDEA_TASK_ICON:-${task_icon_1}}"
+  }
+else
+  # file is being run as a script
+  set -euo pipefail
+
+  YS_SCRIPTS_HOME="$(dirname "$0")"
+  export PATH="$YS_SCRIPTS_HOME:$PATH"
+
+  idea_dir="$(find-in-ancestry .idea || true)"
+  if [ -z "$idea_dir" ]; then
+    exit # not in an intellij dir
+  fi
+
+  if ! command -v xmlstarlet &>/dev/null; then
+    echo '<brew install xmlstarlet>'
+    exit 1
+  fi
+
+  current_changelist="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@id" .idea/workspace.xml)"
+
+  printf '%s' "$current_changelist"
+  if [ "$current_changelist" != Default ]; then
+    printf ': %s' "$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@summary" .idea/workspace.xml)"
+  fi
+fi

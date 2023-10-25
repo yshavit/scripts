@@ -4,8 +4,10 @@
 |------------------------------|---------------------------------------------------------------|
 | `gh-rm-merged`               | Deletes a branch, but only if it’s been merged via a PR.      |
 | `./githooks/jira-intellij/`  | Git hooks for Jira + IntelliJ integration.                    |
+| `intellij-current-task`      | Print the current IntelliJ task; usable as a p10k prompt      |
 | `vscode_to_idea-node-attach` | Updates node.js attach configs from VS Code to IntelliJ IDEA. |
 | `yarn-debug`                 | Runs a yarn script with `--inspect-brk`                       |
+
 
 ## `gh-rm-merged`
 
@@ -21,6 +23,14 @@ If you create a task in IntelliJ that references a Jira ticket, these scripts wi
 To use it, symlink the scripts to your repo's `.git/hooks/` dir. Alternatively, you can or invoke them from existing scripts you have there, making sure to forward all the args:
 
     /path/to/yshavit/scripts/githooks/jira-intellij/$(basename "$0") "$@"
+
+## `intellij-current-task`
+
+Prints the current IntelliJ IDEA task. If invoked as a script, simply ouputs the task. If sourced, defines a function
+`prompt_idea_task`, which means you can add `idea_task` as a segment to your p10k prompt.
+
+In the p10k mode, it by default provides a fancy icon. If that doesn't work for you, consider instaling the p10k fancy
+fonts. Otherwise, you can override it by setting `IDEA_TASK_ICON`.
 
 ## `vscode_to_idea-node-attach`
 

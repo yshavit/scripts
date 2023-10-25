@@ -1,4 +1,5 @@
 #!/bin/bash
+#
 if [[ -z "$@" ]]; then
   echo 1>&2 "Usage: $(basename "$0") <files>"
   exit 1
@@ -10,16 +11,18 @@ function format_path() {
   local expanded_path="$(readlink -f $1)"
   # only expand in interactive terminals
   if [[ $- == *i*-t ]] && [[ "$expanded_path" =~ "$HOME/"* ]]; then
-    echo >&2 here
     expanded_path="~/${expanded_path#"$HOME/"}"
   fi
   echo "$expanded_path"
 }
 
 while true ; do
-  for path in $(ls "$*" 2>/dev/null); do
-    exit_code=0
-    format_path "$path"
+  for look_for in "$@" ; do
+    found="$(find . -maxdepth 1 -name "$look_for")"
+    if [ -n "$found" ]; then
+      format_path "$found"
+      exit_code=0
+    fi
   done
   if [[ "$PWD" == '/' || "$PWD" == "$HOME" ]]; then
     break
