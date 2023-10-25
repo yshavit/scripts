@@ -9,7 +9,7 @@ exit_code=2
 
 function format_path() {
   local expanded_path="$(readlink -f $1)"
-  # only expand in interactive terminals
+  # replace $HOME/ with '~/', but only when run interactively
   if [[ $- == *i*-t ]] && [[ "$expanded_path" =~ "$HOME/"* ]]; then
     expanded_path="~/${expanded_path#"$HOME/"}"
   fi

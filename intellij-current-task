@@ -28,10 +28,10 @@ else
     exit 1
   fi
 
-  current_changelist="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@id" .idea/workspace.xml)"
+  current_changelist="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@id" "$idea_dir/workspace.xml")"
 
   printf '%s' "$current_changelist"
   if [ "$current_changelist" != Default ]; then
-    printf ': %s' "$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@summary" .idea/workspace.xml)"
+    printf ': %s' "$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@summary" "$idea_dir/workspace.xml")"
   fi
 fi
