@@ -12,6 +12,14 @@ if [ ${#funcstack} -gt 1 ]; then
     [ -n "$current_task" ] && p10k segment -t "$current_task" -f magenta -i "${IDEA_TASK_ICON:-${task_icon_1}}"
   }
 else
+  options_dir="$HOME/.config/yshavit-scripts"
+  options_json="$options_dir/intellij-tasks.json"
+  if [ ! -e "$options_json" ]; then
+    mkdir -p "$options_dir"
+    echo '{}' > "$options_json"
+  fi
+  
+
   # file is being run as a script
   source "$(dirname "$0")/lib/common.sh"
   is_installed xmlstarlet || err '<brew install xmlstarlet>'
@@ -22,9 +30,65 @@ else
   fi
 
   current_changelist="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@id" "$idea_dir/workspace.xml")"
+  changelist_idea_desc="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@summary" "$idea_dir/workspace.xml")"
+  changelist_desc="$(cat "$options_json" | jq -r '.tasks[$key].description // $defaultval' --arg key "$current_changelist" --arg defaultval "$changelist_idea_desc")"
 
-  printf '%s' "$current_changelist"
-  if [ "$current_changelist" != Default ]; then
-    printf ': %s' "$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@summary" "$idea_dir/workspace.xml")"
+  first_arg="${1:-}"
+  if [ "$first_arg" == --edit ]; then
+    action=edit
+    shift
+  elif [ "$first_arg" == --use-default ]; then
+    action=use-default
+    shift
+  else
+    action=output
   fi
+
+  function color {
+    color="$1"
+    shift
+    printf "\033[%sm%s\033[0m" "$color" "$*"
+  }
+
+  script_name="$(basename "$0")"
+  case "$action" in
+    output)
+      printf '%s' "$current_changelist"
+      if [ "$current_changelist" != Default ]; then
+        printf ': %s' "$changelist_desc"
+      fi
+
+      {
+        echo
+        color 90 '(Run "'
+        color 36 "$script_name --edit [description]"
+        color 90 '" to edit the task description or "'
+        color 36 "$script_name --use-default"
+        color 90 '" to use the defafault.)'
+        echo
+      } >&2
+      ;;
+    edit)
+      new_desc="$*"
+      if [ -z "$new_desc" ]; then
+        echo "IDEA task description is: $(color 36 "$changelist_idea_desc")"
+        if [ "$changelist_desc" == "$changelist_idea_desc" ]; then
+          echo "That's the currently configured description for $script_name, too."
+        else
+          echo "Current description for $script_name is: $(color 36 "$changelist_desc")"
+        fi
+        printf 'New description? '
+        printf "\033[36m"
+        read new_desc
+        printf "\033[0m"
+      fi
+      cat "$options_json" | jq '.tasks[$key].description |= $newvalue' --arg key "$current_changelist" --arg newvalue "$new_desc" > "${options_json}.tmp"
+      mv "${options_json}.tmp" "$options_json"
+      ;;
+    use-default)
+      cat "$options_json" | jq 'del(.tasks[$key].description)' --arg key "$current_changelist" > "${options_json}.tmp"
+      mv "${options_json}.tmp" "$options_json"
+      ;;
+  esac
+      
 fi
