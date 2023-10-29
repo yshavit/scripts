@@ -1,14 +1,5 @@
 #!/bin/bash
-set -euo pipefail
-
-function msg {
-  echo >&2 "$@"
-}
-
-function err {
-  msg "$@"
-  exit 1
-}
+source "$(dirname "$0")/lib/common.sh"
 
 if ! git diff --stat &>/dev/null ; then
   err "Not in a git repo."

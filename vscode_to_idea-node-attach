@@ -1,6 +1,5 @@
 #!/bin/bash
-
-set -euo pipefail
+source "$(dirname "$0")/lib/common.sh"
 
 project_root="${1:-$PWD}"
 

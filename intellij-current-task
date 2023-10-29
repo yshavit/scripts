@@ -13,19 +13,12 @@ if [ ${#funcstack} -gt 1 ]; then
   }
 else
   # file is being run as a script
-  set -euo pipefail
+  source "$(dirname "$0")/lib/common.sh"
+  is_installed xmlstarlet || err '<brew install xmlstarlet>'
 
-  YS_SCRIPTS_HOME="$(dirname "$0")"
-  export PATH="$YS_SCRIPTS_HOME:$PATH"
-
-  idea_dir="$(find-in-ancestry .idea || true)"
+  idea_dir="$("$ys_scripts_home/find-in-ancestry" .idea || true)"
   if [ -z "$idea_dir" ]; then
     exit # not in an intellij dir
-  fi
-
-  if ! command -v xmlstarlet &>/dev/null; then
-    echo '<brew install xmlstarlet>'
-    exit 1
   fi
 
   current_changelist="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@id" "$idea_dir/workspace.xml")"
