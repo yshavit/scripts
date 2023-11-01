@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!python3
 
 import os
 import signal
@@ -62,10 +62,10 @@ class Table(object):
         # Deep copy the rows, converting each cell to str as we go
         rows = []
         for r in self.rows:
-            rows.append(map(str, r))
+            rows.append([str(c) for c in r])
 
         # Make each row have the same number of columns
-        max_row_len = max(map(len, rows))
+        max_row_len = max([len(r) for r in rows])
         for r in rows:
             r.extend([''] * (max_row_len - len(r)))
 
@@ -87,7 +87,7 @@ class Table(object):
 
         # Finally, print it all out
         for r in rows:
-            print ''.join(r)
+            print(''.join(r))
 
 
 def sizeof_fmt(num):
@@ -104,8 +104,8 @@ def sizeof_fmt(num):
 files = sys.argv[1:]
 if not files:
     files = os.listdir('.')
-    files = filter(lambda f: not f.startswith('.'), files)
-    files.sort()
+    files = [f for f in files if not f.startswith('.')]
+    files = sorted(files)
 if not files:
     exit(0)
 
@@ -127,11 +127,11 @@ status_writer.clear()
 
 # Then report them
 total_size = float(sum(sizes_by_name.values()))
-file_sizes = sizes_by_name.items()  # [(name, size)]
+file_sizes = list(sizes_by_name.items())  # [(name, size)]
 file_sizes.sort(key=lambda e: e[1], reverse=True)
 table = Table(paddings=[1], justifies=[None, 'r', 'r'])
 for f, f_size in file_sizes:
-    ratio = (f_size / total_size) if f_size >= 0 else 0
+    ratio = (f_size / total_size) if (total_size and f_size >= 0) else 0
     filled_bars = int(round(ratio * BAR_LENGTH))
     unfilled_bars = BAR_LENGTH - filled_bars
     if os.path.islink(f):
