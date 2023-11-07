@@ -54,12 +54,14 @@ else
   script_name="$(basename "$0")"
   case "$action" in
     output)
-      printf '%s' "$current_changelist"
-      if [ "$current_changelist" != Default ]; then
+      printf ''
+      if [ "$current_changelist" == Default ]; then
+        printf '%s' "$current_changelist"
+      else
         if [ "$changelist_branch_name" == "$(git rev-parse --abbrev-ref HEAD)" ]; then
-          printf '  ' # icons are "<->" and branch
+          printf '󰓡  %s' "$current_changelist"
         else
-          printf ': %s [%s != %s]' "$changelist_desc" "$changelist_branch_name" "$(git rev-parse --abbrev-ref HEAD)"
+          printf '%s: %s' "$current_changelist" "$changelist_desc"
         fi
       fi
 
