@@ -30,6 +30,7 @@ else
   fi
 
   current_changelist="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@id" "$idea_dir/workspace.xml")"
+  changelist_branch_name="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/branch[not(@original)]/@name" "$idea_dir/workspace.xml")"
   changelist_idea_desc="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@summary" "$idea_dir/workspace.xml")"
   changelist_desc="$(cat "$options_json" | jq -r '.tasks[$key].description // $defaultval' --arg key "$current_changelist" --arg defaultval "$changelist_idea_desc")"
 
@@ -55,7 +56,11 @@ else
     output)
       printf '%s' "$current_changelist"
       if [ "$current_changelist" != Default ]; then
-        printf ': %s' "$changelist_desc"
+        if [ "$changelist_branch_name" == "$(git rev-parse --abbrev-ref HEAD)" ]; then
+          printf '  ' # icons are "<->" and branch
+        else
+          printf ': %s [%s != %s]' "$changelist_desc" "$changelist_branch_name" "$(git rev-parse --abbrev-ref HEAD)"
+        fi
       fi
 
       {
