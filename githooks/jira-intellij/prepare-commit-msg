@@ -36,47 +36,74 @@ SHA1=$3
 current_changelist="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@id" .idea/workspace.xml)"
 current_changelist_desc="$(xmlstarlet sel -t -v "//component[@name='TaskManager']/task[@active='true']/@summary" .idea/workspace.xml)"
 
-if [ "$current_changelist" == "Default" ]; then
-  current_changelist=''
-  changelist_err_msg='No active changelist in IntelliJ.'
-else
+function check_jira() {
+  # Checks jira. prints any errors to stdout; you should check the stdout from this, and onsider it success iff that result is empty
+  cache_file=~/.config/yshavit-scripts/jira-cache.json
+  if [ -e "$cache_file" ]; then
+    jira_ticket="$(cat "$cache_file" | jq -r '.jira_ticket // $unique' --arg unique "$(uuidgen)")"
+    checked_at="$(cat "$cache_file" | jq -r '.checked_epoch_seconds // 0')"
+    cache_age="$(( $(date +%s) - $checked_at ))"
+    if [ "$jira_ticket" == "$current_changelist" ] && [ "$cache_age" -lt 60 ]; then
+      return # good!
+    fi
+  fi
+
   printf >&2 'Fetching status of %s from JIRA... ' "$current_changelist"
   conf_dir="${XDG_CONFIG_HOME:-"$HOME/.config"}/git-intellij-jira"
   jira_username="$(cat 2>/dev/null "$conf_dir/username")"
   jira_token="$(cat 2>/dev/null "$conf_dir/pat")"
   jira_base_url="$(cat 2>/dev/null "$conf_dir/base-url")"
   if [ -z "$jira_username" ] || [ -z "$jira_token" ] || [ -z "$jira_base_url" ]; then
-    changelist_err_msg="Couldn't find JIRA login credentials.
+    echo "Couldn't find JIRA login credentials.
     Please add the following files to $conf_dir:
     - \"username\": your JIRA username or email address
     - \"pat\": your JIRA personal access token
-    - \"base-url\": your JIRA instance's base URL, which is something like https://YOURCOMPANY.atlassian.net"
-    changelist_err_msg="$(echo "$changelist_err_msg" | sed -E 's/^ *//')" # remove the indentations
-    current_changelist=''
+    - \"base-url\": your JIRA instance's base URL, which is something like https://YOURCOMPANY.atlassian.net" |
+    sed -E 's/^ *//' # remove the indentations
   else
     # rm \r and \n because jira will sometimes incorrectly put them in
     jira_ticket="$(curl -X GET -H "Authorization: Basic $(printf '%s:%s' "$jira_username" "$jira_token" | base64 | tr -d $'\n')" -H "Content-Type: application/json" "$jira_base_url/rest/api/2/issue/$current_changelist" 2>/dev/null)"
     if [ "$?" -ne 0 ] || [ -z "$jira_ticket" ]; then
-      changelist_err_msg="Couldn't connect to JIRA."
-      current_changelist=''
+      echo "Couldn't connect to JIRA."
     elif jq -e .errorMessages <<<"$jira_ticket" &>/dev/null ; then
-      changelist_err_msg="Couldn't fetch ticket $current_changelist from JIRA"
-      current_changelist=''
+      echo "Couldn't fetch ticket $current_changelist from JIRA"
     elif jq -e .fields.resolution <<<"$jira_ticket" &>/dev/null ; then
-      changelist_err_msg="IntelliJ changelist is $current_changelist, but JIRA says that's already resolved."
-      current_changelist=''
+      echo "IntelliJ changelist is $current_changelist, but JIRA says that's already resolved."
+    else
+      # record the success
+      echo '{}' | jq '{jira_ticket:$jira_ticket, checked_epoch_seconds:$now}' --arg jira_ticket "$current_changelist" --arg now "$(date +%s)" > "$cache_file"
     fi
   fi
   printf >&2 '\r%s\r' "$(printf 'Fetching status of %s from JIRA... ' "$current_changelist" | sed 's/./ /g')"
+}
+
+if [ "$current_changelist" == "Default" ]; then
+  current_changelist=''
+  changelist_err_msg='No active changelist in IntelliJ.'
+else
+  changelist_err_msg="$(check_jira)"
+  if [ -n "$changelist_err_msg" ]; then
+    current_changelist=''
+  fi
 fi
 
+function file_contains_changelist() {
+  file_path="$1"
+  local unique_text="$(uuidgen | tr -cd 'a-zA-Z0-9')" # uuid, but without the dashes
+  cat "$file_path" |
+    awk -v old="$current_changelist" -v new="$unique_text" '{gsub(old, new); print}' | # replace <changelist> with <uuid>. That way, we don't need to worry about special chars
+    grep -q "\\b$unique_text\\b" # look for that uuid as a complete word
+  return $?
+}
 
 if [ "$COMMIT_SOURCE" == 'message' ]; then
   if [ -n "$changelist_err_msg" ]; then
     msg "WARNING: $changelist_err_msg"
   fi
-  echo >> "$COMMIT_MSG_FILE"
-  echo "$current_changelist"  >> "$COMMIT_MSG_FILE"
+  if ! file_contains_changelist "$1" ; then
+    echo >> "$COMMIT_MSG_FILE"
+    echo "$current_changelist"  >> "$COMMIT_MSG_FILE"
+  fi
 elif [ -z "$COMMIT_SOURCE" ]; then
   tmp_file="$(mktemp)"
   printf >>"$tmp_file" '\n\n'
