@@ -1,0 +1,135 @@
+#!/bin/bash
+
+CONFIG_NAME=tmpmv source "$(dirname "$0")/lib/common.sh"
+
+function show_usage() {
+  msg "$script_name <cmd>"
+  msg "Temporarily moves and restores files"
+  msg
+  msg '• list                  — lists the temporary files'
+  msg '• rm <path> [...paths]  – temporarily remove a path (or multiple)'
+  msg '• restore <idx>         – restore a file, specified by the same index that list showed'
+  msg "• permanent-rm <idx>    — rm's the file permanently"
+  msg "• cat <idx>             — cats the file's contents to stdout"
+}
+
+# takes no args; returns a list of all the temporary ids, in chronological order
+function list_tmp_ids() {
+  {
+    for file in $(ls "$config_dir" | grep '\.link\.json$' || true); do
+      local without_extension="${file%.link.json}"
+      cat "$config_dir/$file" | jq -r '"\(.moved_epoch_secs) \($file)"' --arg file "$without_extension"
+    done
+  } | # output: "<epoch timestamp> <uuid>"
+    sort --reverse --numeric-sort | # sort descending by timestamp
+    cut -d ' ' -f 2 # get just the uuid
+}
+
+function do_list() {
+  if [ $# -ne 0 ]; then
+    err 'list does not take any arguments'
+  fi
+  local idx=1
+  for id in $(list_tmp_ids); do
+    local file="$(config_file "${id}.link.json")"
+    local original_path="$(cat "$file" | jq -r '.original_path')"
+    local original_time="$(cat "$file" | jq -r '.moved_epoch_secs | todateiso8601')"
+    printf '%d: %s (%s)\n' "$idx" "$original_path" "$original_time"
+    idx=$(( $idx + 1 ))
+  done
+}
+
+function do_rm() {
+  [ $# -ge 1 ] || err 'rm takes at least one argument'
+  for file in "$@"; do 
+    [ -e "$file" ] || { msg "No such file: $file" ; msg ; err 'No files were moved.' ; }
+  done
+  for file in "$@"; do
+    local file_path="$(readlink -f "$file")"
+    local tmp_name="$(uuidgen)"
+    local tmp_json="$(config_file "$tmp_name.link.json")"
+    local tmp_path="$(config_file "$tmp_name")"
+    echo '{}' | jq '{original_path: $original_path, moved_epoch_secs: now}' --arg original_path "$file_path" > "$tmp_json"
+    mv "$file_path" "$tmp_path"
+  done
+}
+
+function list_tmp_ids_by_idx() {
+  [ $# -eq 1 ] || err 'restore takes exactly one argument'
+  # todo can loop if we want later, but for now this is simpler.  
+  local ids="$(list_tmp_ids)"
+  local idx="$1"
+  echo "$idx" | grep -Eq '^[0-9]+$' || err "Invalid index (must be integer): $idx"
+  if [ -z "$ids" ]; then
+    # handle empty IDs as a special case, since "echo '' | wc -l" is 1 (not 0)
+    err "Invalid index (out of range): $idx"
+  fi
+  if [ "$idx" -lt 1 ] || [ "$idx" -gt "$(echo "$ids" | wc -l)" ]; then
+    err "Invalid index (out of range): $idx"
+  fi
+  echo "$ids" | sed -n "${idx}p" # sed: https://stackoverflow.com/a/6022441/1076640
+}
+
+function do_restore() {
+  local id
+  for id in $(list_tmp_ids_by_idx "$@"); do
+    local link_file="$(config_file "$id.link.json")"
+    local original_path="$(cat "$link_file" | jq -r '.original_path')"
+
+    [ -e "$original_path" ] && err "Can't restore file, because there's already a file at that path: $original_path"
+
+    mv "$(config_file "$id")" "$original_path"
+    rm "$link_file"
+
+    msg "restored $original_path"
+  done
+}
+
+function do_permanent_rm() {
+  local id
+  for id in $(list_tmp_ids_by_idx "$@"); do
+    cat "$(config_file "$id.link.json")" | jq -r '"Deleting: \(.original_path) (\(.moved_epoch_secs | todateiso8601))"' >&2
+    rm "$(config_file "$id.link.json")"
+    rm "$(config_file "$id")"
+  done
+}
+
+function do_cat() {
+  local id
+  for id in $(list_tmp_ids_by_idx "$@"); do
+    cat "$(config_file "$id")"
+  done
+}
+
+do_main() {
+  if [ $# -lt 1 ]; then
+    show_usage
+    exit 1
+  fi
+  local cmd_name="$1"
+  shift
+  case "$cmd_name" in
+    list)
+      do_list "$@"
+      ;;
+    rm)
+      do_rm "$@"
+      ;;
+    restore)
+      do_restore "$@"
+      ;;
+    permanent-rm)
+      do_permanent_rm "$@"
+      ;;
+    cat)
+      do_cat "$@"
+      ;;
+    *)
+      msg "Unrecognized command: $cmd_name"
+      show_usage
+      exit 1
+      ;;
+  esac
+}
+
+do_main "$@"

@@ -5,6 +5,7 @@
 | `gh-rm-merged`               | Deletes a branch, but only if it’s been merged via a PR.      |
 | `./githooks/jira-intellij/`  | Git hooks for Jira + IntelliJ integration.                    |
 | `intellij-current-task`      | Print the current IntelliJ task; usable as a p10k prompt      |
+| `tmpmv`                      | Temporarily move files aside, with a restore ability.         |
 | `vscode_to_idea-node-attach` | Updates node.js attach configs from VS Code to IntelliJ IDEA. |
 | `yarn-debug`                 | Runs a yarn script with `--inspect-brk`                       |
 
