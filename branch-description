@@ -1,0 +1,103 @@
+#!python3
+
+import json
+import os
+import sys
+from lib import common
+
+configs = common.Configs('branch-descriptions')
+
+DESCRIPTIONS_JSON_FILE = 'descriptions.json'
+
+def main():
+    with common.DispatchingArgParser('short, per-branch descriptions') as parser:
+        with parser.subcommand(cmd_set, 'set', help='sets the description for the current branch') as cmd:
+            cmd.add_argument('description')
+        with parser.subcommand(cmd_get, 'get', help='gets the description for the current branch') as cmd:
+            # TODO "pass" here is ugly. Figure out a better way!
+            pass
+        with parser.subcommand(cmd_unset, 'unset', help='unsets the description for the current branch') as cmd:
+            pass
+        with parser.subcommand(cmd_p10_prompt, 'p10k_prompt', help='outputs a zsh script to define a powerlevel10k prompt. feed this to eval') as cmd:
+            pass
+
+def cmd_p10_prompt():
+    my_path = os.path.abspath(sys.argv[0])
+    if "'" in my_path:
+        raise Exception(f"invalid path to script: may not contain single quotes: {my_path}")
+    print('''
+        function prompt_branch_description() {
+          local branch_description="$('%s' get)"
+          [ -n "$branch_description" ] && p10k segment -f green -t "$branch_description"
+        }
+         ''' % my_path)
+
+def cmd_set(description):
+    info = RepoInfo()
+
+    descriptions = configs.read_json(DESCRIPTIONS_JSON_FILE, default_value={})
+
+    if info.repo_path not in descriptions:
+        descriptions[info.repo_path] = {}
+    if description is None:
+        descriptions[info.repo_path].pop(info.current_branch, None)
+    else:
+        descriptions[info.repo_path][info.current_branch] = description
+
+    clean_descriptions(descriptions)
+    configs.write_json(DESCRIPTIONS_JSON_FILE, descriptions)
+
+def cmd_unset():
+    cmd_set(None)
+
+def cmd_get():
+    try:
+        info = RepoInfo()
+    except:
+        return
+
+    descriptions = configs.read_json(DESCRIPTIONS_JSON_FILE, default_value={})
+    if clean_descriptions(descriptions):
+        configs.write_json(DESCRIPTIONS_JSON_FILE, descriptions)
+
+    repo_descriptions = descriptions.get(info.repo_path, {})
+    branch_description = repo_descriptions.get(info.current_branch, '')
+    print(branch_description)
+
+
+def clean_descriptions(descriptions):
+    cleaned_any = False
+    # when we iterate, we first call list() on the iterator to reify the keys. That way, it's safe to delete them from the dict
+    # as we iterate
+    for repo_path in list(descriptions.keys()): # defensive copy so we can delete in the iteration
+        if not os.path.isdir(repo_path):
+            descriptions.pop(repo_path)
+            cleaned_any = True
+        else:
+            repo_descriptions = descriptions[repo_path]
+            try:
+                repo_branch_names = common.simple_exec("git for-each-ref --format=%(refname:short) refs/heads/".split(), cwd=repo_path)
+            except:
+                # If git gives an error, just ignore this dir. It could be that it's not a git dir anymore, but that seems
+                # unlikely. More likely it's some config issue with git.
+                continue
+            repo_branch_names = set(repo_branch_names.split('\n'))
+            for branch_name in list(repo_descriptions.keys()):
+                if branch_name not in repo_branch_names:
+                    repo_descriptions.pop(branch_name)
+                    cleaned_any = True
+            if not repo_descriptions:
+                descriptions.pop(repo_path)
+    return cleaned_any
+
+
+class RepoInfo:
+    def __init__(self):
+        self.repo_path = common.simple_exec('git rev-parse --show-toplevel'.split())
+        self.current_branch = common.simple_exec('git rev-parse --abbrev-ref HEAD'.split())
+
+if __name__ == '__main__':
+    main()
+
+
+
