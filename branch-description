@@ -1,7 +1,8 @@
-#!python3
+#!/usr/bin/python3
 
 import json
 import os
+import re
 import sys
 from lib import common
 
@@ -20,6 +21,8 @@ def main():
             pass
         with parser.subcommand(cmd_p10_prompt, 'p10k_prompt', help='outputs a zsh script to define a powerlevel10k prompt. feed this to eval') as cmd:
             pass
+        with parser.subcommand(cmd_git_pager, 'git-pager', help=f"operates as a git pager: git config --global --add pager.branch '{common.SCRIPT_NAME} git-pager'"):
+            pass
 
 def cmd_p10_prompt():
     my_path = os.path.abspath(sys.argv[0])
@@ -31,6 +34,36 @@ def cmd_p10_prompt():
           [ -n "$branch_description" ] && p10k segment -f green -t "$branch_description"
         }
          ''' % my_path)
+
+def cmd_git_pager():
+    # If we can't get the repo info, just print stdout straight
+    try:
+        info = RepoInfo()
+    except:
+        for line in sys.stdin.readlines():
+            print(line, end='') # line already contains newline
+        return
+
+    # okay, we have the repo info
+    branch_descriptions = get_branch_descriptions(info)
+
+    for line in sys.stdin.readlines():
+        line = line.rstrip('\n\r')
+        line_no_color = re.sub(r'\x1B\[[0-9;]*[JKmsu]', '', line)
+        line_has_color = line != line_no_color
+
+        print(line, end='')
+        sys.stdout.flush()
+
+        branch_match = re.search('(\S+)$', line_no_color)
+        if branch_match:
+            branch_name = str(branch_match.group(1))
+            branch_description = branch_descriptions.get(branch_name, None)
+            if branch_description:
+                print(f'\033[96m // {branch_description}\033[0m', file=sys.stderr, end='')
+                sys.stderr.flush()
+        print('') # we stripped the newline earlier
+
 
 def cmd_set(description):
     info = RepoInfo()
@@ -56,13 +89,18 @@ def cmd_get():
     except:
         return
 
+    branch_descriptions = get_branch_descriptions(info)
+    branch_description = branch_descriptions.get(info.current_branch, '')
+    print(branch_description)
+
+def get_branch_descriptions(repo_info=None):
+    if repo_info is None:
+        repo_info = RepoInfo()
     descriptions = configs.read_json(DESCRIPTIONS_JSON_FILE, default_value={})
     if clean_descriptions(descriptions):
         configs.write_json(DESCRIPTIONS_JSON_FILE, descriptions)
+    return descriptions.get(repo_info.repo_path, {})
 
-    repo_descriptions = descriptions.get(info.repo_path, {})
-    branch_description = repo_descriptions.get(info.current_branch, '')
-    print(branch_description)
 
 
 def clean_descriptions(descriptions):
