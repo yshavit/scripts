@@ -12,13 +12,13 @@ DESCRIPTIONS_JSON_FILE = 'descriptions.json'
 
 def main():
     with common.DispatchingArgParser('short, per-branch descriptions') as parser:
-        with parser.subcommand(cmd_set, 'set', help='sets the description for the current branch') as cmd:
+        with parser.subcommand(cmd_set, 'set', help='sets the description for a branch') as cmd:
             cmd.add_argument('description')
-        with parser.subcommand(cmd_get, 'get', help='gets the description for the current branch') as cmd:
-            # TODO "pass" here is ugly. Figure out a better way!
-            pass
-        with parser.subcommand(cmd_unset, 'unset', help='unsets the description for the current branch') as cmd:
-            pass
+            cmd.add_argument('-b', '--branch', help='the branch name to set a description for; defaults to current branch')
+        with parser.subcommand(cmd_get, 'get', help='gets the description for a branch') as cmd:
+            cmd.add_argument('-b', '--branch', help='the branch name to set a description for; defaults to current branch')
+        with parser.subcommand(cmd_unset, 'unset', help='unsets the description for a branch') as cmd:
+            cmd.add_argument('-b', '--branch', help='the branch name to set a description for; defaults to current branch')
         with parser.subcommand(cmd_p10_prompt, 'p10k_prompt', help='outputs a zsh script to define a powerlevel10k prompt. feed this to eval') as cmd:
             pass
         with parser.subcommand(cmd_git_pager, 'git-pager', help=f"operates as a git pager: git config --global --add pager.branch '{common.SCRIPT_NAME} git-pager'"):
@@ -65,8 +65,8 @@ def cmd_git_pager():
         print('') # we stripped the newline earlier
 
 
-def cmd_set(description):
-    info = RepoInfo()
+def cmd_set(description, branch):
+    info = RepoInfo(branch)
 
     descriptions = configs.read_json(DESCRIPTIONS_JSON_FILE, default_value={})
 
@@ -80,12 +80,12 @@ def cmd_set(description):
     clean_descriptions(descriptions)
     configs.write_json(DESCRIPTIONS_JSON_FILE, descriptions)
 
-def cmd_unset():
-    cmd_set(None)
+def cmd_unset(branch):
+    cmd_set(None, branch)
 
-def cmd_get():
+def cmd_get(branch):
     try:
-        info = RepoInfo()
+        info = RepoInfo(branch)
     except:
         return
 
@@ -130,9 +130,9 @@ def clean_descriptions(descriptions):
 
 
 class RepoInfo:
-    def __init__(self):
+    def __init__(self, branch_name=None):
         self.repo_path = common.simple_exec('git rev-parse --show-toplevel'.split())
-        self.current_branch = common.simple_exec('git rev-parse --abbrev-ref HEAD'.split())
+        self.current_branch = branch_name or common.simple_exec('git rev-parse --abbrev-ref HEAD'.split())
 
 if __name__ == '__main__':
     main()
