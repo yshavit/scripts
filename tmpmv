@@ -89,8 +89,8 @@ function do_permanent_rm() {
   local id
   for id in $(list_tmp_ids_by_idx "$@"); do
     cat "$(config_file "$id.link.json")" | jq -r '"Deleting: \(.original_path) (\(.moved_epoch_secs | todateiso8601))"' >&2
+    rm -rf "$(config_file "$id")"
     rm "$(config_file "$id.link.json")"
-    rm "$(config_file "$id")"
   done
 }
 

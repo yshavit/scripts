@@ -11,7 +11,7 @@ if [ -n "${CONFIG_NAME:-}" ]; then
   mkdir -p "$config_dir" || err "Couldn't create dir: $config_dir"
 
   function config_file() {
-    if [ $# -ne 1 ]; then
+    if [ $# -ne 1 ] || [ -z "$1" ] ; then
       err "INTERNAL ERROR: bad arg to conf_file"
     fi
     echo "$config_dir/$1"
