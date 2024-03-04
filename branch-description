@@ -68,10 +68,12 @@ def cmd_git_pager():
             interleaving_print('* ' if branch_active else '  ', sys.stdout)
             if branch_active:
                 # paint over the "* " with a nicer version, in stderr
-                interleaving_print('\r\033[1;33m▶︎ \033[0m', sys.stderr)
+                interleaving_print('\r\033[33m▶︎ ', sys.stderr)
             if branch_sha:
                 interleaving_print(f'({branch_sha}) ', sys.stderr)
             interleaving_print(branch_name, sys.stdout)
+            if branch_active:
+                interleaving_print('\033[0m', sys.stderr)
             if branch_description:
                 color = branch_description.get('color', '96')
                 desc = branch_description["description"]
