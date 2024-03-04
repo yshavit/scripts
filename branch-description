@@ -53,19 +53,32 @@ def cmd_git_pager():
         line_no_color = re.sub(r'\x1B\[[0-9;]*[JKmsu]', '', line)
         line_has_color = line != line_no_color
 
-        print(line, end='')
-        sys.stdout.flush()
-
-        branch_match = re.search('(\S+)$', line_no_color)
+        branch_match = re.match('(\*)? *(\S+)$', line_no_color)
         if branch_match:
-            branch_name = str(branch_match.group(1))
+            def interleaving_print(s, file):
+                '''Prints s to the file without a newline, and flushes s immediately.
+                This lets us interleave writes to stdout and stderr on the same line.'''
+                print(s, end='', file=file)
+                file.flush()
+            branch_active, branch_name = branch_match.groups()
             branch_description = branch_descriptions.get(branch_name, None)
+
+            branch_sha = get_branch_sha(branch_name)
+
+            interleaving_print('* ' if branch_active else '  ', sys.stdout)
+            if branch_active:
+                # paint over the "* " with a nicer version, in stderr
+                interleaving_print('\r\033[1;33m▶︎ \033[0m', sys.stderr)
+            if branch_sha:
+                interleaving_print(f'({branch_sha}) ', sys.stderr)
+            interleaving_print(branch_name, sys.stdout)
             if branch_description:
                 color = branch_description.get('color', '96')
                 desc = branch_description["description"]
-                print(f' \033[{color}m// {desc}\033[0m', file=sys.stderr, end='')
-                sys.stderr.flush()
-        print('') # we stripped the newline earlier
+                interleaving_print(f' \033[{color}m// {desc}\033[0m', file=sys.stderr)
+            print('')
+        else:
+            print(line)
 
 
 def cmd_set(description, branch, color):
@@ -137,11 +150,15 @@ def clean_descriptions(descriptions):
                 descriptions.pop(repo_path)
     return cleaned_any
 
+def get_branch_sha(branch_name='HEAD', length=8):
+    return common.simple_exec(['git', 'rev-parse', f'--short={length}', branch_name])
+
 
 class RepoInfo:
     def __init__(self, branch_name=None):
         self.repo_path = common.simple_exec('git rev-parse --show-toplevel'.split())
         self.current_branch = branch_name or common.simple_exec('git rev-parse --abbrev-ref HEAD'.split())
+
 
 if __name__ == '__main__':
     main()
