@@ -86,3 +86,7 @@ else
     exit "$exit_code"
   fi
 fi
+
+# We only get here if the above check_and_rm(s) didn't error
+msg "git branches:"
+>&2 git branch 
