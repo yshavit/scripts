@@ -1,0 +1,39 @@
+#!/bin/bash
+CONFIG_NAME=jiracli source "$(dirname "$0")/lib/common.sh"
+
+creds_file="$(config_file credentials.json)"
+
+function read_cred() {
+  local key="$1"
+  if [ ! -e "$creds_file" ]; then
+    err "Couldn't find credentials file: $creds_file" # TODO what to do about it?
+  fi
+  jq -r '.[$key]' --arg key "$key" "$creds_file" || err "Couldn't read $key from $creds_file"
+}
+
+jira_subdomain="$(read_cred subdomain)"
+my_dir="$(dirname "$(readlink -f "$0")")"
+
+if [ $# == 0 ]; then
+  printf >&2 'Usage: %s <resource> [httpie args...]\n' "$(basename "$0")"
+  printf >&2 '\n'
+printf >&2 'where <resource> is something like "issue/FOO-1234", corresponding to https://%s.atlassian.net/rest/api/latest/issue/PLAT-1234\n' "$jira_subdomain"
+  exit 1
+fi
+
+resource="$1"
+shift
+
+auth="$(printf '%s:%s' "$(read_cred email)" "$(read_cred pat)" | base64)"
+
+set +e # We'll hande errors manually from here on out, because we want to use httpie's --check-status
+https --check-status -j "https://${jira_subdomain}.atlassian.net/rest/api/latest/$resource" Authorization:"Basic $auth" "$@"
+exit_code=$?
+
+if [ $exit_code -eq 4 ]; then
+  https --check-status --head -j "https://${jira_subdomain}.atlassian.net/rest/api/2/myself" Authorization:"Basic $auth" "$@" &>/dev/null
+  if [ $? -eq 4 ]; then
+    COLOR='30;103' msg "⬆︎ ⬆︎ This is probably due to invalid credentials in $creds_file ⬆︎ ⬆︎ "
+  fi
+fi
+exit "$exit_code"

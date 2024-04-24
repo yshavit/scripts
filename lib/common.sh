@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# To use this file within a script:
+# 
+#     CONFIG_NAME=yourscriptname source "$(dirname "$0")/lib/common.sh"
+#
+# You should hard-code CONFIG_NAME and never change it; that way, you'll keep your configs even if the script name changes.
+
 set -euo pipefail
 
 # if CONFIG_NAME is set:
@@ -19,7 +25,11 @@ if [ -n "${CONFIG_NAME:-}" ]; then
 fi
 
 function msg() {
-  >&2 echo "$@"
+  local msg_text="$*"
+  if [ -n "${COLOR-}" ]; then
+    msg_text="\033[${COLOR}m${msg_text}\033[0m"
+  fi
+  >&2 echo -e "$msg_text"
 }
 
 function err() {
