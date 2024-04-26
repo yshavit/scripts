@@ -5,6 +5,8 @@
 #     CONFIG_NAME=yourscriptname source "$(dirname "$0")/lib/common.sh"
 #
 # You should hard-code CONFIG_NAME and never change it; that way, you'll keep your configs even if the script name changes.
+#
+# If you don't need config options, just somit the CONFIG_NAME=yourscriptname bit.
 
 set -euo pipefail
 

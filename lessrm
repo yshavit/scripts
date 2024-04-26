@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source "$(dirname "$0")/lib/common.sh"
+
 function do_one() {
   FILE_NAME="$1"
   if [[ ! -e "$FILE_NAME" ]]; then
@@ -7,7 +9,16 @@ function do_one() {
     return
   fi
   set -e
-  vim -R "$FILE_NAME"
+  if [[ "$(file --mime-type "$FILE_NAME" | awk '{print $NF}')" == "image/"* ]]; then
+    if is_installed ~/.iterm2/imgcat ; then
+      ~/.iterm2/imgcat "$FILE_NAME"
+    else
+      echo "$FILE is an image, but imgcat isn't available"
+      return
+    fi
+  else
+    vim -R "$FILE_NAME"
+  fi
   while [[ true ]]; do
     read -p "rm $FILE_NAME? " SHOULD_DELETE
     if [[ "$SHOULD_DELETE" == 'yes' || "$SHOULD_DELETE" == 'y' ]]; then
