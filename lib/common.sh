@@ -47,3 +47,5 @@ ys_scripts_home="$(dirname "$0")"
 script_name="$(basename "$0")"
 
 is_installed jq || err "Please install jq: brew install jq"
+
+"${ys_scripts_home}/lib/check_updated.sh"

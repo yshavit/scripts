@@ -1,4 +1,7 @@
 #!/bin/bash
+
+source "$(dirname "$0")/lib/common.sh"
+
 case "${1:---table}" in
   --table)
     FLIPIT='(╯°□°）╯ ︵┻━┻'
