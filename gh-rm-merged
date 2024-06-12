@@ -88,5 +88,6 @@ else
 fi
 
 # We only get here if the above check_and_rm(s) didn't error
+msg '──────────────────────────'
 msg "git branches:"
 >&2 git branch 
