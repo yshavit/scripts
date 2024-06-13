@@ -22,5 +22,5 @@ if [ "$local_ahead_count" -ne 0 ]; then
     msg "scripts repo is $local_ahead_count ahead of origin. Please push to origin."
   fi
 elif [ "$remote_ahead_count" -ne 0 ]; then
-  msg "scripts repo is $local_ahead_count behind origin. Please pull from origin."
+  msg "scripts repo is $remote_ahead_count behind origin. Please pull from origin."
 fi
