@@ -103,7 +103,7 @@ def cmd_set(description, branch, color):
     configs.write_json(DESCRIPTIONS_JSON_FILE, descriptions)
 
 def cmd_unset(branch):
-    cmd_set(None, branch)
+    cmd_set(None, branch, None)
 
 def cmd_get(branch):
     try:
