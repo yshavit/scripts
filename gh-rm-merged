@@ -45,6 +45,11 @@ function check_and_rm {
 
   # Ignore any PRs *into* this branch.
   echo ===========================
+  # why do we want this?
+  # I think DON'T want it if $branch_name is a feature branch, and the PR was for another branch into this one.
+  # But in that case, you can git checkout the feature branch, then do "gh-rm-merged <other branch>" and it seems to work.
+  # So maybe this is fine?
+  # Lol what am i even doing
   merged_into_json="$(echo "$merged_into_json" | jq '[ .[] | select(.baseRefName != $curr) ]' --arg curr "$branch_name")"
 
   case "$(<<<"$merged_into_json" jq length)" in
