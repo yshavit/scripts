@@ -115,6 +115,12 @@ def cmd_get(branch):
     branch_description = branch_descriptions.get(info.current_branch, {})
     desc = branch_description.get('description', '')
     color = branch_description.get('color')
+    if _is_iterm2():
+        as_url = _try_parse_url(desc)
+        if as_url and as_url.path:
+            url_label = as_url.path.split('/')[-1]
+            if url_label:
+                desc = f'\033]8;;{desc}\033\\{url_label}\033]8;;\033\\'
     if color:
         desc = f'\033[{color}m{desc}\033[0m'
     print(desc)
@@ -155,6 +161,17 @@ def clean_descriptions(descriptions):
 def get_branch_sha(branch_name='HEAD', length=8):
     return common.simple_exec(['git', 'rev-parse', f'--short={length}', branch_name])
 
+
+def _is_iterm2():
+    return bool(os.environ.get('ITERM_SESSION_ID'))
+
+
+def _try_parse_url(s):
+    from urllib.parse import urlparse
+    try:
+        return urlparse(s)
+    except:
+        return None
 
 class RepoInfo:
     def __init__(self, branch_name=None):
