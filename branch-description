@@ -116,19 +116,7 @@ def cmd_get(branch):
     desc = branch_description.get('description', '')
     color = branch_description.get('color')
     if _is_iterm2():
-        found_any_urls = False
-        splits = desc.split()
-        for idx, word in enumerate(splits):
-            as_url = _try_parse_url(word)
-            if as_url and as_url.scheme and as_url.path:
-                url_label = as_url.path.split('/')[-1]
-                if url_label:
-                    word = f'\033]8;;{word}\033\\{url_label}\033]8;;\033\\'
-                    splits[idx] = word
-                    found_any_urls = True
-        if found_any_urls:
-            desc = ' '.join(splits)
-
+        desc = _iterm2_links(desc)
     if color:
         desc = f'\033[{color}m{desc}\033[0m'
     print(desc)
@@ -173,6 +161,22 @@ def get_branch_sha(branch_name='HEAD', length=8):
 def _is_iterm2():
     return bool(os.environ.get('ITERM_SESSION_ID'))
 
+def _iterm2_links(desc):
+    found_any_urls = False
+    splits = desc.split()
+    for idx, word in enumerate(splits):
+        as_url = _try_parse_url(word)
+        if as_url and as_url.scheme and as_url.path:
+            url_label = as_url.path.split('/')[-1]
+            if re.search('github\\.com/\\w+/\\w+/pull/', as_url.geturl()):
+                url_label = f'pr:{url_label}'
+            if url_label:
+                word = f'\033]8;;{word}\033\\{url_label}\033]8;;\033\\'
+                splits[idx] = word
+                found_any_urls = True
+    if found_any_urls:
+        desc = ' '.join(splits)
+    return desc
 
 def _try_parse_url(s):
     from urllib.parse import urlparse
