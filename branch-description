@@ -169,9 +169,9 @@ def _iterm2_links(desc):
         if as_url and as_url.scheme and as_url.path:
             url_label = as_url.path.split('/')[-1]
             if re.search('github\\.com/\\w+/\\w+/pull/', as_url.geturl()):
-                url_label = f'pr:{url_label}'
+                url_label = f'#{url_label}'
             if url_label:
-                word = f'\033]8;;{word}\033\\{url_label}\033]8;;\033\\'
+                word = f'\uea64 \033]8;;{word}\033\\{url_label}\033]8;;\033\\' # nerdfont nf-cod-git_pull_request
                 splits[idx] = word
                 found_any_urls = True
     if found_any_urls:
