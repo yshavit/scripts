@@ -168,10 +168,16 @@ def _iterm2_links(desc):
         as_url = _try_parse_url(word)
         if as_url and as_url.scheme and as_url.path:
             url_label = as_url.path.split('/')[-1]
+            icon = ''
             if re.search('github\\.com/\\w+/\\w+/pull/', as_url.geturl()):
                 url_label = f'#{url_label}'
+                icon = '\uea64'
+            if re.search('tulipmfg\\.atlassian\\.net', as_url.geturl()):
+                icon = '\ueaaf'
             if url_label:
-                word = f'\uea64 \033]8;;{word}\033\\{url_label}\033]8;;\033\\' # nerdfont nf-cod-git_pull_request
+                if icon:
+                    icon = f'{icon} '
+                word = f'{icon}\033]8;;{word}\033\\{url_label}\033]8;;\033\\' # nerdfont nf-cod-git_pull_request
                 splits[idx] = word
                 found_any_urls = True
     if found_any_urls:
