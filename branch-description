@@ -18,6 +18,7 @@ def main():
             cmd.add_argument('--color', help='The ASCII color code to display the description. For example, "33;48" for red on a gray background')
         with parser.subcommand(cmd_get, 'get', help='gets the description for a branch') as cmd:
             cmd.add_argument('-b', '--branch', help='the branch name to set a description for; defaults to current branch')
+            cmd.add_argument('--raw', action='store_true', help="don't linkify URLs")
         with parser.subcommand(cmd_unset, 'unset', help='unsets the description for a branch') as cmd:
             cmd.add_argument('-b', '--branch', help='the branch name to set a description for; defaults to current branch')
         with parser.subcommand(cmd_p10_prompt, 'p10k_prompt', help='outputs a zsh script to define a powerlevel10k prompt. feed this to eval') as cmd:
@@ -77,6 +78,7 @@ def cmd_git_pager():
             if branch_description:
                 color = branch_description.get('color', '96')
                 desc = branch_description["description"]
+                desc = _iterm2_links(desc)
                 interleaving_print(f' \033[{color}m// {desc}\033[0m', file=sys.stderr)
             print('')
         else:
@@ -105,7 +107,7 @@ def cmd_set(description, branch, color):
 def cmd_unset(branch):
     cmd_set(None, branch, None)
 
-def cmd_get(branch):
+def cmd_get(branch, raw):
     try:
         info = RepoInfo(branch)
     except:
@@ -115,7 +117,7 @@ def cmd_get(branch):
     branch_description = branch_descriptions.get(info.current_branch, {})
     desc = branch_description.get('description', '')
     color = branch_description.get('color')
-    if _is_iterm2():
+    if not raw:
         desc = _iterm2_links(desc)
     if color:
         desc = f'\033[{color}m{desc}\033[0m'
@@ -162,6 +164,8 @@ def _is_iterm2():
     return bool(os.environ.get('ITERM_SESSION_ID'))
 
 def _iterm2_links(desc):
+    if not _is_iterm2():
+        return desc
     found_any_urls = False
     splits = desc.split()
     for idx, word in enumerate(splits):
