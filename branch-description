@@ -13,9 +13,10 @@ DESCRIPTIONS_JSON_FILE = 'descriptions.json'
 def main():
     with common.DispatchingArgParser('short, per-branch descriptions') as parser:
         with parser.subcommand(cmd_set, 'set', help='sets the description for a branch') as cmd:
-            cmd.add_argument('description')
+            cmd.add_argument('description', nargs='?')
             cmd.add_argument('-b', '--branch', help='the branch name to set a description for; defaults to current branch')
             cmd.add_argument('--color', help='The ASCII color code to display the description. For example, "33;48" for red on a gray background')
+            cmd.add_argument('--gh', action='store_true', help="Append a GitHub PR URL, if there's exactly one")
         with parser.subcommand(cmd_get, 'get', help='gets the description for a branch') as cmd:
             cmd.add_argument('-b', '--branch', help='the branch name to set a description for; defaults to current branch')
             cmd.add_argument('--raw', action='store_true', help="don't linkify URLs")
@@ -85,8 +86,15 @@ def cmd_git_pager():
             print(line)
 
 
-def cmd_set(description, branch, color):
+def cmd_set(description, branch, color, gh):
     info = RepoInfo(branch)
+
+    if gh is not None and description is None:
+        # gh is True or False; this is a CLI request
+        if not gh:
+            print('You must either provide a description, or use --gh', file=sys.stderr)
+            exit(1)
+        description = ''
 
     descriptions = configs.read_json(DESCRIPTIONS_JSON_FILE, default_value={})
 
@@ -95,6 +103,14 @@ def cmd_set(description, branch, color):
     if description is None:
         descriptions[info.repo_path].pop(info.current_branch, None)
     else:
+        gh_url = _try_get_gh_url(info) if gh else None
+        if gh_url:
+            if description:
+                if gh_url not in description:
+                    description = f'{description} {gh_url}'
+            else:
+                description = gh_url
+
         descriptions[info.repo_path][info.current_branch] = {
             'description': description
         }
@@ -105,7 +121,7 @@ def cmd_set(description, branch, color):
     configs.write_json(DESCRIPTIONS_JSON_FILE, descriptions)
 
 def cmd_unset(branch):
-    cmd_set(None, branch, None)
+    cmd_set(None, branch, None, None)
 
 def cmd_get(branch, raw):
     try:
@@ -195,11 +211,29 @@ def _try_parse_url(s):
     except:
         return None
 
+def _try_get_gh_url(info):
+    branch_sha = info.get_sha()
+    urls_json = common.simple_exec(['gh', 'pr', 'list', '--search', branch_sha, '--json', 'url'])
+    urls_list = json.loads(urls_json)
+    if not urls_list:
+        print("Couldn't find a GitHub PR for current sha", file=sys.stderr)
+    else:
+        urls = [o['url'] for o in urls_list]
+        if len(urls) > 1:
+            print("Found too many GitHub PRs for current sha:", file=sys.stderr)
+            for u in urls:
+              print(f'- {u}', file=sys.stderr)
+        else:
+            return urls[0]
+    return None
+
 class RepoInfo:
     def __init__(self, branch_name=None):
         self.repo_path = common.simple_exec('git rev-parse --show-toplevel'.split())
         self.current_branch = branch_name or common.simple_exec('git rev-parse --abbrev-ref HEAD'.split())
 
+    def get_sha(self):
+        return common.simple_exec('git rev-parse HEAD'.split())
 
 if __name__ == '__main__':
     main()
