@@ -233,7 +233,7 @@ class RepoInfo:
         self.current_branch = branch_name or common.simple_exec('git rev-parse --abbrev-ref HEAD'.split())
 
     def get_sha(self):
-        return common.simple_exec('git rev-parse HEAD'.split())
+        return common.simple_exec(['git', 'rev-parse', self.current_branch])
 
 if __name__ == '__main__':
     main()
