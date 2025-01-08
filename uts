@@ -1,0 +1,33 @@
+#!/bin/bash
+
+source "$(dirname "$0")/lib/common.sh"
+
+function show_usage_and_exit() {
+  err "Usage: $script_name [n] <from_unit> [\"to\"] <to_unit>"
+}
+
+case $# in
+  2)
+    magnitude=1
+    from_unit="$1"
+    to_unit="$2"
+    ;;
+  3)
+    magnitude="$1"
+    from_unit="$2"
+    to_unit="$3"
+    ;;
+  4)
+    if [[ "$3" != to ]]; then
+      show_usage_and_exit
+    fi
+    magnitude="$1"
+    from_unit="$2"
+    to_unit="$4"
+    ;;
+  *)
+    show_usage_and_exit
+    ;;
+esac
+
+units -o %0.f -t "$magnitude $from_unit" "$to_unit" | tr -d "\n"
