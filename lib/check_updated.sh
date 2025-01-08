@@ -12,7 +12,7 @@ local_ahead_count="$(git rev-list --count origin/main..main)"
 remote_ahead_count="$(git rev-list --count main..origin/main)"
 
 function msg() {
-  printf '\e[30;103m %s \e[0m\n' "$*"
+  printf >&2 '\e[30;103m %s \e[0m\n' "$*"
 }
 
 if [ "$local_ahead_count" -ne 0 ]; then
