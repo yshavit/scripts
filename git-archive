@@ -1,0 +1,51 @@
+#!/bin/bash
+
+CONFIG_NAME=gitarchive source "$(dirname "$0")/lib/common.sh"
+
+printf >&2 'Initializing...'
+if ! default_branch_name="$(2>/dev/null gh repo view --json defaultBranchRef | jq -r '.defaultBranchRef.name')" ; then
+  err "GitHub repo not set up; can't determine default branch name"
+fi
+printf >&2 '\r               \r'
+
+current_branch_name="$(git rev-parse --abbrev-ref HEAD)"
+
+if [[ "$current_branch_name" == "$default_branch_name" ]]; then
+  err "Can't archive default branch"
+fi
+
+archive_repo=archive
+prefs_json_file="$(config_file prefs.json)"
+if [[ -e "$prefs_json_file" ]]; then
+  curr_dir="$(readlink -f "$PWD")"
+  archive_repo="$(<"$prefs_json_file" jq -r '.repos_by_path[$dir] // $def' --arg def "$archive_repo" --arg dir "$curr_dir")"
+fi
+
+if ! &>/dev/null git remote ; then
+  err "You must run this within a git repo."
+elif ! &>/dev/null git remote show "$archive_repo" ; then
+  err "Can't archive to \"$archive_repo\" because there is no such remote in this repo."
+fi
+
+archive_url="$(git remote get-url "$archive_repo")"
+archive_filepath=''
+current_description=''
+if grep -q '^/' <<< "$archive_url" ; then
+  archive_filepath="$archive_url"
+  current_description="$(branch-description get)"
+fi
+
+printf >&2 'Pushing...'
+git push "$archive_repo" &>/dev/null
+if [[ -n "$current_description" ]]; then
+  (
+    cd "$archive_filepath"
+    branch-description set -b "$current_branch_name" "$current_description"
+  )
+fi
+
+git co "$default_branch_name" &>/dev/null
+git branch -D "$current_branch_name" &>/dev/null
+
+msg "Archived $current_branch_name to $archive_url and switched to $default_branch_name"
+
