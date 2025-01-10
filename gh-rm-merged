@@ -10,9 +10,9 @@ if git diff --stat | grep -q . ; then
 fi
 
 expected_remote="$(gh repo view --json owner,name | jq -r '"git@github.com:" + .owner.login + "/" + .name + ".git"')"
-actual_remote="$(git remote -v | tr ' ' $'\t' | cut -f 2 | sort -u)"
+actual_remote="$(git remote -v | grep -F "$expected_remote" | tr ' ' $'\t' | cut -f 2 | sort -u)"
 if [[ "$(wc -l <<< "$actual_remote" )" -ne 1 ]]; then 
-  msg "Multiple remotes found. I don't know how to handle that smartly, so this may not work. Will try anyway."
+  msg "Multiple remotes found for $expected_remote. I don't know how to handle that smartly, so this may not work. Will try anyway."
 elif [[ "$actual_remote" != "$expected_remote" ]]; then
   msg "Remote is $actual_remote, but GitHub knows it as $expected_remote."
   msg "This means we won't be able to find the pull requests."
@@ -72,7 +72,7 @@ function check_and_rm {
 
   git co "$merged_into"
   git branch -D "$branch_name"
-  git pull
+  git pull || msg "unable to pull latest from $merged_into"
   if [[ "$branch_name" != "$curr_branch" ]]; then
     git co "$curr_branch"  # move back to where we were
   fi
