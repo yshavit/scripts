@@ -54,7 +54,8 @@ function check_and_rm {
 
   case "$(<<<"$merged_into_json" jq length)" in
     ""|0)
-      err "No merged PRs found for the latest commit ($branch_name@${last_sha:0:8}). Can't rm branch."
+      msg "$branch_name@${last_sha:0:8}: No merged PRs found for the latest commit. Can't rm branch."
+      return "${IF_UNMERGED-1}"
       ;;
     1)
       ;; # Desired case!
@@ -82,7 +83,22 @@ if [[ $# -lt 1 ]]; then
   check_and_rm "$curr_branch"
 else
   exit_code=0
-  for branch_name in "$@"; do 
+  branches_to_merge=()
+  if [[ $# -eq 1 && "$1" == '--all' ]]; then
+     while read -r branch_name ; do
+      branches_to_merge+=("$branch_name")
+    done <<< "$(GIT_PAGER= git branch --format="%(refname:short)")"
+    IF_UNMERGED=0 # don't error in check_and_rm if the branch is unmerged
+  else
+    for branch_name in "$@"; do
+      branches_to_merge[${#branches_to_merge[@]}]="$branch_name"
+    done
+  fi
+
+  for branch_name in "${branches_to_merge[@]-}"; do 
+    if [[ "$branch_name" == "$default_branch_name" ]]; then
+      continue
+    fi
     if ! check_and_rm "$branch_name" ; then
       exit_code=1
     fi
