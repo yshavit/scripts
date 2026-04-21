@@ -176,11 +176,11 @@ def get_branch_sha(branch_name='HEAD', length=8):
     return common.simple_exec(['git', 'rev-parse', f'--short={length}', branch_name])
 
 
-def _is_iterm2():
-    return bool(os.environ.get('ITERM_SESSION_ID'))
+def is_fancy_terminal():
+    return os.environ.get('TERM_PROGRAM') in ['iTerm.app', 'ghostty']
 
 def _iterm2_links(desc):
-    if not _is_iterm2():
+    if not is_fancy_terminal():
         return desc
     found_any_urls = False
     splits = desc.split()
