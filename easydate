@@ -1,0 +1,242 @@
+#!/usr/bin/env python3
+"""
+anydate - sniff a date/timestamp in any common format and print it in many.
+
+Usage:
+    anydate <input>            # detect and print all formats
+    anydate                    # uses current time
+    echo <input> | anydate     # reads from stdin
+
+Supported inputs (auto-detected):
+    - epoch seconds       e.g. 1700000000  or 1700000000.123
+    - epoch milliseconds  e.g. 1700000000000
+    - epoch microseconds  e.g. 1700000000000000
+    - epoch nanoseconds   e.g. 1700000000000000000
+    - ISO 8601 / RFC 3339 e.g. 2024-01-15T10:30:00Z, 2024-01-15 10:30:00+02:00
+    - RFC 2822            e.g. Mon, 15 Jan 2024 10:30:00 +0000
+    - common date strings e.g. 2024-01-15, 2024/01/15, 15 Jan 2024
+    - "now"
+"""
+
+import sys
+import re
+from datetime import datetime, timezone, timedelta
+from email.utils import parsedate_to_datetime, format_datetime
+
+
+# Heuristic boundaries for distinguishing epoch units.
+# Anything from ~1973 (1e8 sec) up through year ~5138 (1e11 sec) is "seconds".
+# Multiply by 1000/1e6/1e9 for ms/us/ns ranges.
+SEC_MIN, SEC_MAX = 1e8, 1e11          # ~1973 .. ~5138
+MS_MIN,  MS_MAX  = 1e11, 1e14
+US_MIN,  US_MAX  = 1e14, 1e17
+NS_MIN,  NS_MAX  = 1e17, 1e20
+
+
+def parse_epoch(s: str):
+    """Try to parse `s` as an epoch number. Returns (datetime_utc, unit) or None."""
+    try:
+        # Allow underscores or commas as digit separators just in case.
+        cleaned = s.replace("_", "").replace(",", "")
+        n = float(cleaned)
+    except ValueError:
+        return None
+
+    abs_n = abs(n)
+    if SEC_MIN <= abs_n < SEC_MAX:
+        return datetime.fromtimestamp(n, tz=timezone.utc), "epoch seconds"
+    if MS_MIN <= abs_n < MS_MAX:
+        return datetime.fromtimestamp(n / 1e3, tz=timezone.utc), "epoch milliseconds"
+    if US_MIN <= abs_n < US_MAX:
+        return datetime.fromtimestamp(n / 1e6, tz=timezone.utc), "epoch microseconds"
+    if NS_MIN <= abs_n < NS_MAX:
+        return datetime.fromtimestamp(n / 1e9, tz=timezone.utc), "epoch nanoseconds"
+    # Out of any plausible epoch range — treat as not-an-epoch so we can try
+    # other parsers (e.g. a bare year like "2024" shouldn't be epoch seconds).
+    return None
+
+
+def parse_iso(s: str):
+    """Try ISO 8601 / RFC 3339. Returns (datetime, label) or None."""
+    candidate = s.strip()
+    # fromisoformat in 3.11+ accepts trailing 'Z'; for older versions, swap it.
+    candidate_z = candidate
+    if candidate_z.endswith("Z") or candidate_z.endswith("z"):
+        candidate_z = candidate_z[:-1] + "+00:00"
+    # Allow space as date/time separator.
+    try:
+        dt = datetime.fromisoformat(candidate_z)
+    except ValueError:
+        return None
+    return dt, "ISO 8601"
+
+
+def parse_rfc2822(s: str):
+    """Try RFC 2822 (email-style). Returns (datetime, label) or None."""
+    try:
+        dt = parsedate_to_datetime(s.strip())
+    except (TypeError, ValueError):
+        return None
+    if dt is None:
+        return None
+    return dt, "RFC 2822"
+
+
+# A small grab-bag of common strptime patterns to try as a last resort.
+STRPTIME_FORMATS = [
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%d %H:%M",
+    "%Y-%m-%d",
+    "%Y/%m/%d %H:%M:%S",
+    "%Y/%m/%d",
+    "%d/%m/%Y %H:%M:%S",
+    "%d/%m/%Y",
+    "%m/%d/%Y %H:%M:%S",
+    "%m/%d/%Y",
+    "%d %b %Y %H:%M:%S",
+    "%d %b %Y",
+    "%d %B %Y",
+    "%b %d %Y",
+    "%B %d %Y",
+    "%Y%m%d",
+    "%Y%m%dT%H%M%S",
+]
+
+
+def parse_strptime(s: str):
+    s = s.strip()
+    for fmt in STRPTIME_FORMATS:
+        try:
+            return datetime.strptime(s, fmt), f"strptime({fmt})"
+        except ValueError:
+            continue
+    return None
+
+
+def detect(s: str):
+    """Return (datetime_utc, source_label)."""
+    s = s.strip()
+    if not s:
+        raise ValueError("empty input")
+    if s.lower() == "now":
+        return datetime.now(tz=timezone.utc), "now"
+
+    # Try epoch first only if the input looks numeric — otherwise something like
+    # "2024" might get misclassified.
+    if re.fullmatch(r"[-+]?\d[\d_,]*(\.\d+)?", s):
+        result = parse_epoch(s)
+        if result:
+            return result
+
+    for parser in (parse_iso, parse_rfc2822, parse_strptime):
+        result = parser(s)
+        if result:
+            dt, label = result
+            # Naive datetimes are assumed to be UTC. We could assume local
+            # instead, but UTC is less surprising for log/timestamp use cases.
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt, label
+
+    raise ValueError(f"could not parse {s!r} as a date/timestamp")
+
+
+def render(dt: datetime, source: str) -> str:
+    """Build the multi-format output block."""
+    dt_utc = dt.astimezone(timezone.utc)
+    dt_local = dt.astimezone()  # system local tz
+
+    epoch_sec_f = dt_utc.timestamp()
+    epoch_sec = int(epoch_sec_f)
+    epoch_ms = int(epoch_sec_f * 1000)
+    epoch_us = int(epoch_sec_f * 1_000_000)
+    epoch_ns = int(epoch_sec_f * 1_000_000_000)
+
+    # Relative description
+    now = datetime.now(tz=timezone.utc)
+    delta = dt_utc - now
+    rel = humanize(delta)
+
+    local_offset = dt_local.utcoffset()
+    local_offset_str = format_offset(local_offset) if local_offset is not None else "?"
+
+    lines = [
+        f"Detected:           {source}",
+        f"",
+        f"Epoch seconds:      {epoch_sec}",
+        f"Epoch milliseconds: {epoch_ms}",
+        f"Epoch microseconds: {epoch_us}",
+        f"Epoch nanoseconds:  {epoch_ns}",
+        f"",
+        f"ISO 8601 (UTC):     {dt_utc.strftime('%Y-%m-%dT%H:%M:%S')}.{dt_utc.microsecond:06d}Z",
+        f"ISO 8601 (local):   {dt_local.strftime('%Y-%m-%dT%H:%M:%S')}{format_offset(dt_local.utcoffset())}",
+        f"RFC 2822:           {format_datetime(dt_utc)}",
+        f"RFC 3339 (UTC):     {dt_utc.strftime('%Y-%m-%dT%H:%M:%SZ')}",
+        f"Day of week:        {dt_utc.strftime('%A')}",
+        f"",
+        f"Local timezone:     UTC{local_offset_str}",
+        f"Relative:           {rel}",
+    ]
+    return "\n".join(lines)
+
+
+def format_offset(td) -> str:
+    if td is None:
+        return ""
+    total = int(td.total_seconds())
+    sign = "+" if total >= 0 else "-"
+    total = abs(total)
+    h, rem = divmod(total, 3600)
+    m, _ = divmod(rem, 60)
+    return f"{sign}{h:02d}:{m:02d}"
+
+
+def humanize(delta: timedelta) -> str:
+    """Render a timedelta as something like '3 days ago' or 'in 2 hours'."""
+    secs = delta.total_seconds()
+    future = secs > 0
+    secs = abs(secs)
+
+    units = [
+        ("year", 365 * 24 * 3600),
+        ("month", 30 * 24 * 3600),
+        ("week", 7 * 24 * 3600),
+        ("day", 24 * 3600),
+        ("hour", 3600),
+        ("minute", 60),
+        ("second", 1),
+    ]
+    for name, size in units:
+        if secs >= size:
+            n = secs / size
+            n_str = f"{n:.1f}" if n < 10 else f"{int(n)}"
+            label = f"{n_str} {name}{'s' if n_str != '1' and n_str != '1.0' else ''}"
+            return f"in {label}" if future else f"{label} ago"
+    return "just now"
+
+
+def main(argv):
+    if len(argv) > 2:
+        print("usage: anydate [<date>]", file=sys.stderr)
+        return 2
+    if len(argv) == 2:
+        raw = argv[1]
+    elif not sys.stdin.isatty():
+        raw = sys.stdin.read().strip()
+        if not raw:
+            raw = "now"
+    else:
+        raw = "now"
+
+    try:
+        dt, source = detect(raw)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+    print(render(dt, source))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
