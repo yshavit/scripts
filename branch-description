@@ -55,7 +55,7 @@ def cmd_git_pager():
         line_no_color = re.sub(r'\x1B\[[0-9;]*[JKmsu]', '', line)
         line_has_color = line != line_no_color
 
-        branch_match = re.match('(\*)? *(\S+)$', line_no_color)
+        branch_match = re.match('(\\*)? *(\\S+)$', line_no_color)
         if branch_match:
             def interleaving_print(s, file):
                 '''Prints s to the file without a newline, and flushes s immediately.
